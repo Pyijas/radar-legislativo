@@ -1,7 +1,7 @@
 """
-Geração do relatório HTML — um painel interativo autocontido (HTML+CSS+JS
-puro, sem dependências externas, sem servidor), com busca, filtros e
-estatísticas em cima dos dados salvos no SQLite.
+Geração do relatório HTML — um painel interativo autocontido (HTML+CSS+JS,
+com Chart.js via CDN para os gráficos), com busca, filtros, estatísticas e
+tendência ao longo do ano em cima dos dados salvos no SQLite.
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     dados = [_linha_para_dado(l) for l in linhas]
     # Evita que um "</script>" dentro de algum texto feche a tag prematuramente.
     dados_json = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/")
-    gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
+    gerado_em = datetime.now().strftime("%d/%m/%Y às %H:%M")
 
     doc = f"""<!doctype html>
 <html lang="pt-br">
@@ -51,131 +51,249 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Radar Legislativo — Saúde/Farma</title>
+<meta name="description" content="Monitoramento automático de projetos de lei federais com impacto no setor de saúde e farmacêutico, classificados por IA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root {{
     color-scheme: light dark;
-    --bg: #f6f6f4; --card: #ffffff; --border: #e8e8e4; --text: #1a1a1a; --muted: #6b6b6b;
-    --accent: #2b6cb0; --chip-bg: #edf2f7; --chip-text: #2d3748;
-    --alto: #c0392b; --medio: #b7791f; --baixo: #2f855a; --sem: #718096;
-    --ia: #2b6cb0; --heur: #805ad5;
+    --bg: #f5f6f8; --bg-soft: #eef0f3; --card: #ffffff; --border: #e4e6ea;
+    --text: #14181f; --muted: #6b7280; --muted-2: #9aa1ab;
+    --accent: #2563eb; --accent-soft: #eaf0fe;
+    --chip-bg: #f1f3f6; --chip-text: #3a4150;
+    --alto: #dc2626; --alto-soft: #fdecec; --medio: #d97706; --medio-soft: #fef3e2;
+    --baixo: #16a34a; --baixo-soft: #eafaf0; --sem: #8b93a1;
+    --ia: #2563eb; --heur: #7c3aed;
+    --shadow: 0 1px 2px rgba(20,24,31,.04), 0 8px 24px -12px rgba(20,24,31,.10);
+    --radius: 16px;
   }}
   @media (prefers-color-scheme: dark) {{
     :root {{
-      --bg: #14151a; --card: #1c1d24; --border: #2c2d36; --text: #e8e8e8; --muted: #9a9a9a;
-      --chip-bg: #2c2d3a; --chip-text: #cbd5e0;
+      --bg: #0d0f13; --bg-soft: #14171d; --card: #171a21; --border: #262b34;
+      --text: #eef0f3; --muted: #9aa1ab; --muted-2: #6b7280;
+      --accent: #5b8bf7; --accent-soft: #172242;
+      --chip-bg: #1f2430; --chip-text: #c3c9d4;
+      --alto-soft: #2a1518; --medio-soft: #2a2013; --baixo-soft: #12261a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
     }}
   }}
   * {{ box-sizing: border-box; }}
-  body {{ font-family: -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 1.75rem;
-          background: var(--bg); color: var(--text); }}
-  h1 {{ font-size: 1.35rem; margin: 0 0 0.15rem; }}
-  .meta {{ color: var(--muted); font-size: 0.82rem; margin-bottom: 1.25rem; }}
+  html {{ scroll-behavior: smooth; }}
+  body {{
+    font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; background: var(--bg); color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }}
+  a {{ color: inherit; }}
 
-  .stats {{ display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.1rem; }}
-  .stat {{ background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-           padding: 0.6rem 1rem; min-width: 92px; }}
-  .stat .n {{ font-size: 1.3rem; font-weight: 700; line-height: 1.1; }}
-  .stat .l {{ font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }}
-  .stat.alto .n {{ color: var(--alto); }} .stat.medio .n {{ color: var(--medio); }} .stat.baixo .n {{ color: var(--baixo); }}
+  /* ---------- topbar ---------- */
+  .topbar {{
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding: 0.9rem 1.75rem;
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }}
+  .brand {{ display: flex; align-items: center; gap: 0.65rem; }}
+  .brand .dot {{ width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+                 box-shadow: 0 0 0 4px var(--accent-soft); flex: none; }}
+  .brand h1 {{ font-size: 1.05rem; font-weight: 700; margin: 0; letter-spacing: -0.01em; }}
+  .brand .sub {{ font-size: 0.76rem; color: var(--muted); margin-top: 0.1rem; }}
+  .topbar-right {{ display: flex; align-items: center; gap: 0.9rem; font-size: 0.78rem; color: var(--muted); }}
+  .topbar-right a {{ display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none;
+                      padding: 0.4rem 0.7rem; border-radius: 999px; border: 1px solid var(--border);
+                      transition: background .15s, border-color .15s; }}
+  .topbar-right a:hover {{ background: var(--chip-bg); border-color: var(--muted-2); }}
+  .live {{ display: inline-flex; align-items: center; gap: 0.4rem; }}
+  .live .pulse {{ width: 7px; height: 7px; border-radius: 50%; background: var(--baixo);
+                  animation: pulse 2s ease-in-out infinite; }}
+  @keyframes pulse {{ 0%,100% {{ opacity: 1; transform: scale(1); }} 50% {{ opacity: .45; transform: scale(1.3); }} }}
 
-  .areas-chart {{ background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-                  padding: 0.9rem 1.1rem; margin-bottom: 1.1rem; }}
-  .areas-chart h2 {{ font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted);
-                      margin: 0 0 0.6rem; font-weight: 600; }}
-  .area-row {{ display: grid; grid-template-columns: 200px 1fr 2.2rem; align-items: center; gap: 0.5rem;
-               font-size: 0.8rem; margin-bottom: 0.3rem; }}
-  .area-row .barra-fundo {{ background: var(--chip-bg); border-radius: 4px; height: 9px; overflow: hidden; }}
-  .area-row .barra {{ background: var(--accent); height: 100%; }}
-  .area-row .cnt {{ text-align: right; color: var(--muted); }}
-  .area-row .lbl {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }}
-  .area-row .lbl:hover {{ text-decoration: underline; }}
+  .container {{ max-width: 1180px; margin: 0 auto; padding: 1.75rem; }}
 
-  .filtros {{ display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }}
-  .filtros input[type=text] {{ flex: 1; min-width: 200px; }}
-  .filtros input, .filtros select {{ padding: 0.45rem 0.6rem; border-radius: 7px; border: 1px solid var(--border);
-                                       background: var(--card); color: var(--text); font-size: 0.85rem; }}
-  .filtros button {{ padding: 0.45rem 0.8rem; border-radius: 7px; border: 1px solid var(--border);
-                      background: var(--card); color: var(--text); cursor: pointer; font-size: 0.85rem; }}
-  .filtros button:hover {{ background: var(--chip-bg); }}
-  .contagem {{ font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem; }}
+  @keyframes rise {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+  .rise {{ animation: rise .5s cubic-bezier(.16,1,.3,1) both; }}
 
-  table {{ width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px;
-           overflow: hidden; border: 1px solid var(--border); }}
-  th, td {{ text-align: left; padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--border); vertical-align: top; }}
-  th {{ background: var(--chip-bg); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em;
-        color: var(--muted); position: sticky; top: 0; }}
-  tbody tr:last-child td {{ border-bottom: none; }}
-  tbody tr:hover {{ background: color-mix(in srgb, var(--chip-bg) 55%, transparent); }}
-  .pl a {{ font-weight: 600; color: var(--text); text-decoration: none; white-space: nowrap; }}
-  .pl a:hover {{ text-decoration: underline; }}
-  .data {{ font-size: 0.72rem; color: var(--muted); }}
-  .resumo {{ max-width: 480px; font-size: 0.87rem; line-height: 1.4; }}
-  .resumo.clamp {{ display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }}
-  .badge {{ display: inline-block; color: #fff; padding: 0.15rem 0.55rem; border-radius: 999px;
-            font-size: 0.72rem; font-weight: 600; white-space: nowrap; }}
-  .tag {{ display: inline-block; background: var(--chip-bg); color: var(--chip-text); padding: 0.1rem 0.5rem;
-          border-radius: 5px; font-size: 0.72rem; margin: 0.1rem 0.25rem 0.1rem 0; cursor: pointer; }}
-  .tag:hover {{ opacity: 0.75; }}
-  .fonte {{ font-size: 0.72rem; font-weight: 600; white-space: nowrap; }}
-  .rodape {{ display: flex; justify-content: center; margin-top: 1rem; }}
-  .rodape button {{ padding: 0.55rem 1.4rem; border-radius: 999px; border: 1px solid var(--border);
-                     background: var(--card); color: var(--text); cursor: pointer; font-size: 0.85rem; }}
-  .rodape button:hover {{ background: var(--chip-bg); }}
-  .vazio {{ text-align: center; color: var(--muted); padding: 2rem !important; }}
+  /* ---------- KPI cards ---------- */
+  .kpis {{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.8rem; margin-bottom: 1.4rem; }}
+  .kpi {{ background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: 1rem 1.1rem; box-shadow: var(--shadow); position: relative; overflow: hidden; }}
+  .kpi::before {{ content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--bar, var(--accent)); }}
+  .kpi .n {{ font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }}
+  .kpi .l {{ font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; font-weight: 600;
+             text-transform: uppercase; letter-spacing: 0.04em; }}
+  .kpi.alto {{ --bar: var(--alto); }} .kpi.alto .n {{ color: var(--alto); }}
+  .kpi.medio {{ --bar: var(--medio); }} .kpi.medio .n {{ color: var(--medio); }}
+  .kpi.baixo {{ --bar: var(--baixo); }} .kpi.baixo .n {{ color: var(--baixo); }}
+  .kpi.ia {{ --bar: var(--ia); }} .kpi.heur {{ --bar: var(--heur); }}
+
+  /* ---------- charts ---------- */
+  .charts {{ display: grid; grid-template-columns: 1.1fr 1.4fr 1.4fr; gap: 0.9rem; margin-bottom: 1.4rem; }}
+  .panel {{ background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }}
+  .panel h2 {{ font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+               margin: 0 0 0.8rem; font-weight: 700; }}
+  .panel .chart-wrap {{ position: relative; height: 190px; }}
+
+  /* ---------- filtros ---------- */
+  .toolbar {{ display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: 0.9rem; }}
+  .search {{ position: relative; flex: 1; min-width: 220px; }}
+  .search svg {{ position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); opacity: 0.45; pointer-events: none; }}
+  .search input {{ width: 100%; padding: 0.6rem 0.8rem 0.6rem 2.15rem; border-radius: 10px;
+                    border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 0.88rem;
+                    font-family: inherit; transition: border-color .15s, box-shadow .15s; }}
+  .search input:focus {{ outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }}
+  .segmented {{ display: inline-flex; background: var(--chip-bg); border-radius: 10px; padding: 3px; gap: 2px; }}
+  .segmented button {{ border: none; background: transparent; color: var(--muted); font-size: 0.82rem; font-weight: 600;
+                        padding: 0.42rem 0.75rem; border-radius: 8px; cursor: pointer; font-family: inherit;
+                        transition: background .15s, color .15s; white-space: nowrap; }}
+  .segmented button:hover {{ color: var(--text); }}
+  .segmented button.active {{ background: var(--card); color: var(--text); box-shadow: var(--shadow); }}
+  select.pill {{ padding: 0.55rem 0.8rem; border-radius: 10px; border: 1px solid var(--border);
+                 background: var(--card); color: var(--text); font-size: 0.83rem; font-family: inherit; cursor: pointer; }}
+  .clear-btn {{ border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 0.82rem;
+                padding: 0.55rem 0.85rem; border-radius: 10px; cursor: pointer; font-family: inherit; font-weight: 600;
+                transition: color .15s, border-color .15s; }}
+  .clear-btn:hover {{ color: var(--text); border-color: var(--muted-2); }}
+  .contagem {{ font-size: 0.8rem; color: var(--muted); margin: 0.2rem 0 0.9rem; }}
+  .contagem b {{ color: var(--text); }}
+
+  /* ---------- lista de cards ---------- */
+  #corpo {{ display: flex; flex-direction: column; gap: 0.65rem; }}
+  .item {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+           padding: 1rem 1.15rem; box-shadow: var(--shadow); transition: border-color .15s, transform .15s; }}
+  .item:hover {{ border-color: var(--muted-2); }}
+  .item-head {{ display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.5rem; }}
+  .item-title {{ display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }}
+  .item-title a {{ font-weight: 700; text-decoration: none; font-size: 0.95rem; }}
+  .item-title a:hover {{ text-decoration: underline; }}
+  .item-title .data {{ font-size: 0.74rem; color: var(--muted-2); font-variant-numeric: tabular-nums; }}
+  .badge {{ display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.65rem; border-radius: 999px;
+            font-size: 0.72rem; font-weight: 700; white-space: nowrap; flex: none; }}
+  .badge::before {{ content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }}
+  .badge.alto {{ background: var(--alto-soft); color: var(--alto); }}
+  .badge.médio {{ background: var(--medio-soft); color: var(--medio); }}
+  .badge.baixo {{ background: var(--baixo-soft); color: var(--baixo); }}
+  .badge.sem {{ background: var(--chip-bg); color: var(--sem); }}
+  .resumo {{ font-size: 0.86rem; line-height: 1.5; color: var(--text); margin: 0 0 0.65rem; }}
+  .resumo.clamp {{ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }}
+  .item-foot {{ display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }}
+  .tags {{ display: flex; flex-wrap: wrap; gap: 0.35rem; }}
+  .tag {{ font-size: 0.71rem; font-weight: 600; padding: 0.18rem 0.55rem; border-radius: 7px; cursor: pointer;
+          background: var(--chip-bg); color: var(--chip-text); border: 1px solid transparent; transition: opacity .15s; }}
+  .tag:hover {{ opacity: 0.72; }}
+  .fonte {{ font-size: 0.71rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem; }}
+  .fonte::before {{ content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }}
+  .fonte.ia {{ color: var(--ia); }} .fonte.heuristica {{ color: var(--heur); }}
+  .toggle-hint {{ font-size: 0.7rem; color: var(--muted-2); cursor: pointer; user-select: none; }}
+
+  .rodape-lista {{ display: flex; justify-content: center; margin: 1.3rem 0; }}
+  .rodape-lista button {{ padding: 0.65rem 1.6rem; border-radius: 999px; border: 1px solid var(--border);
+                     background: var(--card); color: var(--text); cursor: pointer; font-size: 0.85rem; font-weight: 600;
+                     font-family: inherit; box-shadow: var(--shadow); transition: border-color .15s; }}
+  .rodape-lista button:hover {{ border-color: var(--accent); color: var(--accent); }}
+  .vazio {{ text-align: center; color: var(--muted); padding: 3rem 1rem; font-size: 0.9rem; }}
+
+  footer {{ text-align: center; padding: 2rem 1rem 3rem; color: var(--muted-2); font-size: 0.76rem; }}
+  footer a {{ color: var(--muted); text-decoration: underline; }}
+
+  @media (max-width: 980px) {{
+    .kpis {{ grid-template-columns: repeat(3, 1fr); }}
+    .charts {{ grid-template-columns: 1fr; }}
+  }}
+  @media (max-width: 620px) {{
+    .kpis {{ grid-template-columns: repeat(2, 1fr); }}
+    .topbar {{ padding: 0.8rem 1rem; }}
+    .container {{ padding: 1.1rem; }}
+  }}
 </style>
 </head>
 <body>
-  <h1>Radar Legislativo — Saúde/Farma</h1>
-  <div class="meta">Gerado em {gerado_em} · dados da Câmara dos Deputados, tema Saúde</div>
-
-  <div class="stats" id="stats"></div>
-  <div class="areas-chart">
-    <h2>Áreas mais frequentes (no que está filtrado)</h2>
-    <div id="areasChart"></div>
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>Radar Legislativo</h1>
+        <div class="sub">Saúde &amp; Farma no Congresso Nacional</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="live"><span class="pulse"></span> Atualizado {gerado_em}</span>
+      <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        código-fonte
+      </a>
+    </div>
   </div>
 
-  <div class="filtros">
-    <input type="text" id="busca" placeholder="Buscar por texto, ementa, área...">
-    <select id="fNivel">
-      <option value="todos">Impacto: todos</option>
-      <option value="alto">Alto</option>
-      <option value="médio">Médio</option>
-      <option value="baixo">Baixo</option>
-    </select>
-    <select id="fFonte">
-      <option value="todos">Origem: todas</option>
-      <option value="ia">IA</option>
-      <option value="heuristica">Heurística</option>
-    </select>
-    <select id="fArea">
-      <option value="todos">Área: todas</option>
-    </select>
-    <select id="fOrdem">
-      <option value="data_desc">Mais recentes primeiro</option>
-      <option value="data_asc">Mais antigos primeiro</option>
-      <option value="impacto">Maior impacto primeiro</option>
-    </select>
-    <button id="limpar">Limpar filtros</button>
+  <div class="container">
+    <div class="kpis rise" id="kpis"></div>
+
+    <div class="charts rise" style="animation-delay:.05s">
+      <div class="panel">
+        <h2>Impacto</h2>
+        <div class="chart-wrap"><canvas id="chartImpacto"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Áreas mais frequentes</h2>
+        <div class="chart-wrap"><canvas id="chartAreas"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Novos PLs por mês</h2>
+        <div class="chart-wrap"><canvas id="chartMeses"></canvas></div>
+      </div>
+    </div>
+
+    <div class="toolbar rise" style="animation-delay:.1s">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="busca" placeholder="Buscar por texto, ementa, área, autor...">
+      </div>
+      <div class="segmented" id="fNivel" data-value="todos">
+        <button data-v="todos" class="active">Todos</button>
+        <button data-v="alto">Alto</button>
+        <button data-v="médio">Médio</button>
+        <button data-v="baixo">Baixo</button>
+      </div>
+      <div class="segmented" id="fFonte" data-value="todos">
+        <button data-v="todos" class="active">Todas</button>
+        <button data-v="ia">IA</button>
+        <button data-v="heuristica">Heurística</button>
+      </div>
+      <select class="pill" id="fArea"><option value="todos">Área: todas</option></select>
+      <select class="pill" id="fOrdem">
+        <option value="data_desc">Mais recentes</option>
+        <option value="data_asc">Mais antigos</option>
+        <option value="impacto">Maior impacto</option>
+      </select>
+      <button class="clear-btn" id="limpar">Limpar</button>
+    </div>
+
+    <div class="contagem" id="contagem"></div>
+    <div id="corpo"></div>
+    <div class="rodape-lista" id="rodape"></div>
   </div>
 
-  <div class="contagem" id="contagem"></div>
-  <table>
-    <thead>
-      <tr><th>PL</th><th>Resumo / Ementa</th><th>Impacto</th><th>Áreas</th><th>Origem</th></tr>
-    </thead>
-    <tbody id="corpo"></tbody>
-  </table>
-  <div class="rodape" id="rodape"></div>
+  <footer>
+    Dados públicos da API da Câmara dos Deputados · Classificação por IA (Anthropic/Gemini) com fallback heurístico
+    · <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener">ver código-fonte</a>
+  </footer>
 
 <script id="dados-radar" type="application/json">{dados_json}</script>
 <script>
 (function() {{
   const DADOS = JSON.parse(document.getElementById('dados-radar').textContent);
   const RANK = {{alto: 0, "médio": 1, baixo: 2}};
-  const COR_NIVEL = {{alto: 'var(--alto)', "médio": 'var(--medio)', baixo: 'var(--baixo)'}};
   const ROTULO_FONTE = {{ia: 'IA', heuristica: 'Heurística'}};
-  const COR_FONTE = {{ia: 'var(--ia)', heuristica: 'var(--heur)'}};
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 24;
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  const css = getComputedStyle(document.documentElement);
+  const cor = (v) => css.getPropertyValue(v).trim();
+  const COR_NIVEL = {{alto: cor('--alto'), "médio": cor('--medio'), baixo: cor('--baixo')}};
 
   const el = {{
     busca: document.getElementById('busca'),
@@ -184,16 +302,15 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     fArea: document.getElementById('fArea'),
     fOrdem: document.getElementById('fOrdem'),
     limpar: document.getElementById('limpar'),
-    stats: document.getElementById('stats'),
-    areasChart: document.getElementById('areasChart'),
+    kpis: document.getElementById('kpis'),
     contagem: document.getElementById('contagem'),
     corpo: document.getElementById('corpo'),
     rodape: document.getElementById('rodape'),
   }};
 
   let paginaAtual = 1;
+  let kpisRenderizados = false;
 
-  // popula o select de áreas com todas as áreas distintas do dataset
   const todasAreas = Array.from(new Set(DADOS.flatMap(d => d.areas))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   for (const a of todasAreas) {{
     const opt = document.createElement('option');
@@ -205,10 +322,21 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     return String(s ?? '').replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
   }}
 
+  function segValor(container) {{ return container.dataset.value; }}
+  document.querySelectorAll('.segmented').forEach(seg => {{
+    seg.addEventListener('click', (e) => {{
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      seg.dataset.value = btn.dataset.v;
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    }});
+  }});
+
   function aplicarFiltros() {{
     const busca = el.busca.value.trim().toLowerCase();
-    const nivel = el.fNivel.value;
-    const fonte = el.fFonte.value;
+    const nivel = segValor(el.fNivel);
+    const fonte = segValor(el.fFonte);
     const area = el.fArea.value;
 
     let itens = DADOS.filter(d => {{
@@ -230,56 +358,133 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     return itens;
   }}
 
-  function renderStats(itens) {{
+  function animarNumero(elemento, alvo) {{
+    const inicio = performance.now();
+    const duracao = 700;
+    function passo(agora) {{
+      const t = Math.min(1, (agora - inicio) / duracao);
+      const ease = 1 - Math.pow(1 - t, 3);
+      elemento.textContent = Math.round(alvo * ease).toLocaleString('pt-BR');
+      if (t < 1) requestAnimationFrame(passo);
+    }}
+    requestAnimationFrame(passo);
+  }}
+
+  function renderKpis(itens) {{
     const porNivel = {{alto: 0, "médio": 0, baixo: 0}};
     let ia = 0, heur = 0;
     for (const d of itens) {{
       if (d.nivel in porNivel) porNivel[d.nivel]++;
       if (d.fonte === 'ia') ia++; else if (d.fonte === 'heuristica') heur++;
     }}
-    el.stats.innerHTML = `
-      <div class="stat"><div class="n">${{itens.length}}</div><div class="l">Total</div></div>
-      <div class="stat alto"><div class="n">${{porNivel.alto}}</div><div class="l">Impacto alto</div></div>
-      <div class="stat medio"><div class="n">${{porNivel["médio"]}}</div><div class="l">Impacto médio</div></div>
-      <div class="stat baixo"><div class="n">${{porNivel.baixo}}</div><div class="l">Impacto baixo</div></div>
-      <div class="stat"><div class="n">${{ia}}</div><div class="l">Via IA</div></div>
-      <div class="stat"><div class="n">${{heur}}</div><div class="l">Via heurística</div></div>`;
+    const cards = [
+      ['', itens.length, 'Total'],
+      ['alto', porNivel.alto, 'Impacto alto'],
+      ['medio', porNivel["médio"], 'Impacto médio'],
+      ['baixo', porNivel.baixo, 'Impacto baixo'],
+      ['ia', ia, 'Via IA'],
+      ['heur', heur, 'Via heurística'],
+    ];
+    if (!kpisRenderizados) {{
+      el.kpis.innerHTML = cards.map(([cls, n, l], i) =>
+        `<div class="kpi ${{cls}}"><div class="n" data-i="${{i}}">0</div><div class="l">${{l}}</div></div>`
+      ).join('');
+      kpisRenderizados = true;
+    }}
+    cards.forEach(([, n], i) => animarNumero(el.kpis.querySelector(`[data-i="${{i}}"]`), n));
   }}
 
-  function renderAreasChart(itens) {{
-    const contagem = new Map();
-    for (const d of itens) for (const a of d.areas) contagem.set(a, (contagem.get(a) || 0) + 1);
-    const top = Array.from(contagem.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    if (!top.length) {{ el.areasChart.innerHTML = '<div style="color:var(--muted); font-size:0.85rem;">Nenhuma área no filtro atual.</div>'; return; }}
-    const max = top[0][1];
-    el.areasChart.innerHTML = top.map(([nome, n]) => `
-      <div class="area-row">
-        <div class="lbl" data-area="${{esc(nome)}}" title="${{esc(nome)}} — clique pra filtrar">${{esc(nome)}}</div>
-        <div class="barra-fundo"><div class="barra" style="width:${{(n / max * 100).toFixed(0)}}%"></div></div>
-        <div class="cnt">${{n}}</div>
-      </div>`).join('');
-    el.areasChart.querySelectorAll('.lbl').forEach(node => {{
-      node.addEventListener('click', () => {{ el.fArea.value = node.dataset.area; render(); }});
+  let chImpacto, chAreas, chMeses;
+  function renderCharts(itens) {{
+    const porNivel = {{alto: 0, "médio": 0, baixo: 0}};
+    for (const d of itens) if (d.nivel in porNivel) porNivel[d.nivel]++;
+
+    const contagemAreas = new Map();
+    for (const d of itens) for (const a of d.areas) contagemAreas.set(a, (contagemAreas.get(a) || 0) + 1);
+    const topAreas = Array.from(contagemAreas.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).reverse();
+
+    const porMes = new Array(12).fill(0);
+    for (const d of itens) {{
+      const m = parseInt(d.data.slice(5, 7), 10) - 1;
+      if (m >= 0 && m < 12) porMes[m]++;
+    }}
+
+    const textoCor = cor('--muted');
+    const gridCor = cor('--border');
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = textoCor;
+
+    if (chImpacto) chImpacto.destroy();
+    chImpacto = new Chart(document.getElementById('chartImpacto'), {{
+      type: 'doughnut',
+      data: {{
+        labels: ['Alto', 'Médio', 'Baixo'],
+        datasets: [{{ data: [porNivel.alto, porNivel["médio"], porNivel.baixo],
+                      backgroundColor: [COR_NIVEL.alto, COR_NIVEL["médio"], COR_NIVEL.baixo],
+                      borderWidth: 0, hoverOffset: 6 }}]
+      }},
+      options: {{
+        maintainAspectRatio: false, cutout: '68%',
+        plugins: {{ legend: {{ position: 'bottom', labels: {{ boxWidth: 8, boxHeight: 8, padding: 12, usePointStyle: true, pointStyle: 'circle' }} }} }}
+      }}
+    }});
+
+    if (chAreas) chAreas.destroy();
+    chAreas = new Chart(document.getElementById('chartAreas'), {{
+      type: 'bar',
+      data: {{
+        labels: topAreas.map(a => a[0]),
+        datasets: [{{ data: topAreas.map(a => a[1]), backgroundColor: cor('--accent'), borderRadius: 5, barThickness: 12 }}]
+      }},
+      options: {{
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: {{ legend: {{ display: false }} }},
+        scales: {{
+          x: {{ grid: {{ color: gridCor }}, ticks: {{ precision: 0 }} }},
+          y: {{ grid: {{ display: false }}, ticks: {{ font: {{ size: 10.5 }} }} }}
+        }}
+      }}
+    }});
+
+    if (chMeses) chMeses.destroy();
+    chMeses = new Chart(document.getElementById('chartMeses'), {{
+      type: 'bar',
+      data: {{
+        labels: MESES,
+        datasets: [{{ data: porMes, backgroundColor: cor('--accent'), borderRadius: 5, barThickness: 14 }}]
+      }},
+      options: {{
+        maintainAspectRatio: false,
+        plugins: {{ legend: {{ display: false }} }},
+        scales: {{
+          x: {{ grid: {{ display: false }} }},
+          y: {{ grid: {{ color: gridCor }}, ticks: {{ precision: 0 }} }}
+        }}
+      }}
     }});
   }}
 
-  function linhaHtml(d) {{
-    const nivel = d.nivel || '—';
-    const cor = COR_NIVEL[d.nivel] || 'var(--sem)';
+  function itemHtml(d) {{
+    const nivel = d.nivel || 'sem';
+    const rotuloNivel = d.nivel || '—';
     const tags = d.areas.map(a => `<span class="tag" data-area="${{esc(a)}}">${{esc(a)}}</span>`).join('');
     const origem = ROTULO_FONTE[d.fonte] || '—';
-    const corFonte = COR_FONTE[d.fonte] || 'var(--sem)';
     return `
-      <tr>
-        <td class="pl">
-          <a href="${{esc(d.url)}}" target="_blank" rel="noopener">${{esc(d.pl)}}</a>
-          <div class="data">${{esc(d.data)}}</div>
-        </td>
-        <td class="resumo clamp" title="Clique para expandir">${{esc(d.resumo)}}</td>
-        <td><span class="badge" style="background:${{cor}}">${{esc(nivel)}}</span></td>
-        <td>${{tags}}</td>
-        <td><span class="fonte" style="color:${{corFonte}}">${{esc(origem)}}</span></td>
-      </tr>`;
+      <div class="item">
+        <div class="item-head">
+          <div class="item-title">
+            <a href="${{esc(d.url)}}" target="_blank" rel="noopener">${{esc(d.pl)}}</a>
+            <span class="data">${{esc(d.data)}}</span>
+          </div>
+          <span class="badge ${{nivel}}">${{esc(rotuloNivel)}}</span>
+        </div>
+        <p class="resumo clamp" title="Clique para expandir">${{esc(d.resumo)}}</p>
+        <div class="item-foot">
+          <div class="tags">${{tags}}</div>
+          <span class="fonte ${{d.fonte || ''}}">${{esc(origem)}}</span>
+        </div>
+      </div>`;
   }}
 
   function render() {{
@@ -289,14 +494,14 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
 
   function renderPagina() {{
     const itens = aplicarFiltros();
-    renderStats(itens);
-    renderAreasChart(itens);
-    el.contagem.textContent = itens.length + ' PL(s) encontrados';
+    renderKpis(itens);
+    renderCharts(itens);
+    el.contagem.innerHTML = `<b>${{itens.length.toLocaleString('pt-BR')}}</b> PL(s) encontrados`;
 
     const visiveis = itens.slice(0, paginaAtual * PAGE_SIZE);
     el.corpo.innerHTML = visiveis.length
-      ? visiveis.map(linhaHtml).join('')
-      : '<tr><td class="vazio" colspan="5">Nenhum PL encontrado com esses filtros.</td></tr>';
+      ? visiveis.map(itemHtml).join('')
+      : '<div class="vazio">Nenhum PL encontrado com esses filtros.</div>';
 
     el.corpo.querySelectorAll('.tag').forEach(node => {{
       node.addEventListener('click', () => {{ el.fArea.value = node.dataset.area; render(); }});
@@ -306,15 +511,20 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     }});
 
     el.rodape.innerHTML = visiveis.length < itens.length
-      ? `<button id="maisBtn">Mostrar mais (${{itens.length - visiveis.length}} restantes)</button>` : '';
+      ? `<button id="maisBtn">Mostrar mais (${{(itens.length - visiveis.length).toLocaleString('pt-BR')}} restantes)</button>` : '';
     const maisBtn = document.getElementById('maisBtn');
     if (maisBtn) maisBtn.addEventListener('click', () => {{ paginaAtual++; renderPagina(); }});
   }}
 
-  [el.busca].forEach(i => i.addEventListener('input', render));
-  [el.fNivel, el.fFonte, el.fArea, el.fOrdem].forEach(i => i.addEventListener('change', render));
+  el.busca.addEventListener('input', render);
+  el.fArea.addEventListener('change', render);
+  el.fOrdem.addEventListener('change', render);
   el.limpar.addEventListener('click', () => {{
-    el.busca.value = ''; el.fNivel.value = 'todos'; el.fFonte.value = 'todos';
+    el.busca.value = '';
+    el.fNivel.dataset.value = 'todos';
+    el.fFonte.dataset.value = 'todos';
+    el.fNivel.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
+    el.fFonte.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
     el.fArea.value = 'todos'; el.fOrdem.value = 'data_desc';
     render();
   }});

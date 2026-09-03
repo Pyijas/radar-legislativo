@@ -31,7 +31,7 @@ from rich.console import Console
 from rich.table import Table
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from src import camara_client, heuristic_classify, pdf_extract, report, storage
+from src import camara_client, heuristic_classify, pdf_extract, publish, report, storage
 from src.classify import ClassificacaoIndisponivel, classificar
 
 console = Console()
@@ -184,6 +184,10 @@ def main() -> None:
     console.print(f"\nRelatório visual: [bold]{caminho_html}[/bold]")
     if not args.sem_navegador:
         webbrowser.open(caminho_html.as_uri())
+
+    publicado, msg_publicacao = publish.publicar(caminho_html)
+    cor_msg = "green" if publicado else "yellow"
+    console.print(f"[{cor_msg}]{msg_publicacao}[/{cor_msg}]")
 
     if args.export:
         exportar_csv(linhas, args.export)
