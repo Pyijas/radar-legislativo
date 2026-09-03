@@ -24,15 +24,22 @@ def _parse_lista(valor):
 def _linha_para_dado(l: dict) -> dict:
     """Converte uma linha do SQLite pro formato compacto consumido pelo JS do relatório."""
     return {
+        "id": l["id"],
         "pl": f"{l['sigla_tipo']} {l['numero']}/{l['ano']}",
         "data": (l["data_apresentacao"] or "")[:10],
         "url": l["url_camara"] or "",
+        "ementa": l["ementa"] or "",
         "resumo": l["resumo"] or l["ementa"] or "",
+        "justificativa": l["justificativa_relevancia"] or "",
         "nivel": l["nivel_impacto"],
+        "abrangencia": l["abrangencia"] or "",
         "areas": _parse_lista(l["areas_impactadas"]),
         "tipos": _parse_lista(l["tipo_impacto"]),
         "fonte": l["fonte_classificacao"],
         "autores": l["autores"] or "",
+        "tramitacaoData": (l["ultima_tramitacao_data"] or "")[:10],
+        "tramitacaoDesc": l["ultima_tramitacao_descricao"] or "",
+        "orgao": l["orgao_atual"] or "",
     }
 
 
@@ -162,15 +169,20 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
   .contagem b {{ color: var(--text); }}
 
   /* ---------- lista de cards ---------- */
-  #corpo {{ display: flex; flex-direction: column; gap: 0.65rem; }}
+  #corpo {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 0.65rem; align-items: start; }}
   .item {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-           padding: 1rem 1.15rem; box-shadow: var(--shadow); transition: border-color .15s, transform .15s; }}
-  .item:hover {{ border-color: var(--muted-2); }}
+           padding: 1rem 1.15rem; box-shadow: var(--shadow); transition: border-color .15s, transform .15s, box-shadow .15s;
+           cursor: pointer; display: flex; flex-direction: column; }}
+  .item:hover {{ border-color: var(--accent); transform: translateY(-2px);
+                 box-shadow: 0 1px 2px rgba(20,24,31,.04), 0 14px 28px -14px color-mix(in srgb, var(--accent) 35%, transparent); }}
   .item-head {{ display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.5rem; }}
   .item-title {{ display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }}
   .item-title a {{ font-weight: 700; text-decoration: none; font-size: 0.95rem; }}
   .item-title a:hover {{ text-decoration: underline; }}
   .item-title .data {{ font-size: 0.74rem; color: var(--muted-2); font-variant-numeric: tabular-nums; }}
+  .item-meta {{ display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem; font-size: 0.73rem; color: var(--muted);
+                margin-bottom: 0.55rem; font-variant-numeric: tabular-nums; }}
+  .item-meta span {{ cursor: default; }}
   .badge {{ display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.65rem; border-radius: 999px;
             font-size: 0.72rem; font-weight: 700; white-space: nowrap; flex: none; }}
   .badge::before {{ content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }}
@@ -195,7 +207,33 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
                      background: var(--card); color: var(--text); cursor: pointer; font-size: 0.85rem; font-weight: 600;
                      font-family: inherit; box-shadow: var(--shadow); transition: border-color .15s; }}
   .rodape-lista button:hover {{ border-color: var(--accent); color: var(--accent); }}
-  .vazio {{ text-align: center; color: var(--muted); padding: 3rem 1rem; font-size: 0.9rem; }}
+  .vazio {{ text-align: center; color: var(--muted); padding: 3rem 1rem; font-size: 0.9rem; grid-column: 1 / -1; }}
+
+  /* ---------- modal de detalhe ---------- */
+  .modal-backdrop {{ position: fixed; inset: 0; background: rgba(8,10,14,.55); backdrop-filter: blur(2px);
+                      display: flex; align-items: flex-start; justify-content: center; padding: 4vh 1.25rem;
+                      overflow-y: auto; z-index: 100; opacity: 0; pointer-events: none; transition: opacity .16s; }}
+  .modal-backdrop.open {{ opacity: 1; pointer-events: auto; }}
+  .modal {{ background: var(--card); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 640px;
+            padding: 1.6rem 1.7rem 1.8rem; box-shadow: 0 30px 70px -24px rgba(0,0,0,.45);
+            transform: translateY(14px) scale(.97); transition: transform .18s cubic-bezier(.16,1,.3,1); }}
+  .modal-backdrop.open .modal {{ transform: translateY(0) scale(1); }}
+  .modal-top {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; }}
+  .modal-close {{ border: none; background: var(--chip-bg); color: var(--muted); width: 32px; height: 32px;
+                  border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1; flex: none;
+                  transition: background .15s, color .15s; }}
+  .modal-close:hover {{ background: var(--border); color: var(--text); }}
+  .modal h2 {{ margin: 0.7rem 0 0; font-size: 1.2rem; letter-spacing: -0.01em; }}
+  .modal h2 a {{ text-decoration: none; }}
+  .modal h2 a:hover {{ text-decoration: underline; }}
+  .modal-resumo {{ font-size: 0.92rem; line-height: 1.6; margin: 0.9rem 0; }}
+  .modal-just {{ font-size: 0.82rem; color: var(--muted); background: var(--chip-bg); padding: 0.65rem 0.85rem;
+                 border-radius: 10px; margin: 0.9rem 0; line-height: 1.5; }}
+  .modal-section {{ margin: 1.1rem 0; }}
+  .modal-section h4 {{ font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+                        margin: 0 0 0.5rem; font-weight: 700; }}
+  .modal-section p {{ margin: 0; font-size: 0.87rem; line-height: 1.5; color: var(--text); }}
+  body.modal-open {{ overflow: hidden; }}
 
   footer {{ text-align: center; padding: 2rem 1rem 3rem; color: var(--muted-2); font-size: 0.76rem; }}
   footer a {{ color: var(--muted); text-decoration: underline; }}
@@ -264,6 +302,8 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
         <button data-v="heuristica">Heurística</button>
       </div>
       <select class="pill" id="fArea"><option value="todos">Área: todas</option></select>
+      <select class="pill" id="fOrgao"><option value="todos">Órgão: todos</option></select>
+      <select class="pill" id="fSituacao"><option value="todos">Situação: todas</option></select>
       <select class="pill" id="fOrdem">
         <option value="data_desc">Mais recentes</option>
         <option value="data_asc">Mais antigos</option>
@@ -275,6 +315,38 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     <div class="contagem" id="contagem"></div>
     <div id="corpo"></div>
     <div class="rodape-lista" id="rodape"></div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modal">
+      <div class="modal-top">
+        <span class="badge" id="modalBadge"></span>
+        <button class="modal-close" id="modalClose" aria-label="Fechar">✕</button>
+      </div>
+      <h2 id="modalTitulo"></h2>
+      <div class="item-meta" id="modalMeta"></div>
+      <p class="modal-resumo" id="modalResumo"></p>
+      <div class="modal-just" id="modalJust" hidden></div>
+      <div class="modal-section" id="modalAreasWrap" hidden>
+        <h4>Áreas impactadas</h4>
+        <div class="tags" id="modalAreas"></div>
+      </div>
+      <div class="modal-section" id="modalTiposWrap" hidden>
+        <h4>Tipo de impacto</h4>
+        <div class="tags" id="modalTipos"></div>
+      </div>
+      <div class="modal-section" id="modalAbrangenciaWrap" hidden>
+        <h4>Abrangência</h4>
+        <p id="modalAbrangencia"></p>
+      </div>
+      <div class="modal-section" id="modalAutoresWrap" hidden>
+        <h4>Autor(es)</h4>
+        <p id="modalAutores"></p>
+      </div>
+      <div class="item-foot" style="margin-top:0.4rem">
+        <span class="fonte" id="modalFonte"></span>
+      </div>
+    </div>
   </div>
 
   <footer>
@@ -300,23 +372,34 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     fNivel: document.getElementById('fNivel'),
     fFonte: document.getElementById('fFonte'),
     fArea: document.getElementById('fArea'),
+    fOrgao: document.getElementById('fOrgao'),
+    fSituacao: document.getElementById('fSituacao'),
     fOrdem: document.getElementById('fOrdem'),
     limpar: document.getElementById('limpar'),
     kpis: document.getElementById('kpis'),
     contagem: document.getElementById('contagem'),
     corpo: document.getElementById('corpo'),
     rodape: document.getElementById('rodape'),
+    modalBackdrop: document.getElementById('modalBackdrop'),
+    modalClose: document.getElementById('modalClose'),
   }};
 
   let paginaAtual = 1;
   let kpisRenderizados = false;
 
-  const todasAreas = Array.from(new Set(DADOS.flatMap(d => d.areas))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  for (const a of todasAreas) {{
-    const opt = document.createElement('option');
-    opt.value = a; opt.textContent = a;
-    el.fArea.appendChild(opt);
+  const PORID = new Map(DADOS.map(d => [d.id, d]));
+
+  function preencherSelect(select, valores, rotuloTodos) {{
+    const opts = Array.from(new Set(valores)).filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    for (const v of opts) {{
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      select.appendChild(opt);
+    }}
   }}
+  preencherSelect(el.fArea, DADOS.flatMap(d => d.areas));
+  preencherSelect(el.fOrgao, DADOS.map(d => d.orgao));
+  preencherSelect(el.fSituacao, DADOS.map(d => d.tramitacaoDesc));
 
   function esc(s) {{
     return String(s ?? '').replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
@@ -338,13 +421,17 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     const nivel = segValor(el.fNivel);
     const fonte = segValor(el.fFonte);
     const area = el.fArea.value;
+    const orgao = el.fOrgao.value;
+    const situacao = el.fSituacao.value;
 
     let itens = DADOS.filter(d => {{
       if (nivel !== 'todos' && d.nivel !== nivel) return false;
       if (fonte !== 'todos' && d.fonte !== fonte) return false;
       if (area !== 'todos' && !d.areas.includes(area)) return false;
+      if (orgao !== 'todos' && d.orgao !== orgao) return false;
+      if (situacao !== 'todos' && d.tramitacaoDesc !== situacao) return false;
       if (busca) {{
-        const alvo = (d.pl + ' ' + d.resumo + ' ' + d.areas.join(' ') + ' ' + d.autores).toLowerCase();
+        const alvo = (d.pl + ' ' + d.resumo + ' ' + d.areas.join(' ') + ' ' + d.autores + ' ' + d.orgao).toLowerCase();
         if (!alvo.includes(busca)) return false;
       }}
       return true;
@@ -470,22 +557,97 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     const rotuloNivel = d.nivel || '—';
     const tags = d.areas.map(a => `<span class="tag" data-area="${{esc(a)}}">${{esc(a)}}</span>`).join('');
     const origem = ROTULO_FONTE[d.fonte] || '—';
+    const meta = [`<span title="Data de apresentação">📅 ${{esc(d.data)}}</span>`];
+    if (d.orgao) meta.push(`<span title="Órgão que está com a proposição agora">📍 ${{esc(d.orgao)}}</span>`);
+    if (d.tramitacaoData) {{
+      const tituloMov = d.tramitacaoDesc ? ` title="${{esc(d.tramitacaoDesc)}}"` : '';
+      meta.push(`<span${{tituloMov}}>🔄 última mov. ${{esc(d.tramitacaoData)}}</span>`);
+    }}
     return `
-      <div class="item">
+      <div class="item" data-id="${{d.id}}">
         <div class="item-head">
           <div class="item-title">
             <a href="${{esc(d.url)}}" target="_blank" rel="noopener">${{esc(d.pl)}}</a>
-            <span class="data">${{esc(d.data)}}</span>
           </div>
           <span class="badge ${{nivel}}">${{esc(rotuloNivel)}}</span>
         </div>
-        <p class="resumo clamp" title="Clique para expandir">${{esc(d.resumo)}}</p>
+        <div class="item-meta">${{meta.join('')}}</div>
+        <p class="resumo clamp">${{esc(d.resumo)}}</p>
         <div class="item-foot">
           <div class="tags">${{tags}}</div>
           <span class="fonte ${{d.fonte || ''}}">${{esc(origem)}}</span>
         </div>
       </div>`;
   }}
+
+  const modalEl = {{
+    badge: document.getElementById('modalBadge'),
+    titulo: document.getElementById('modalTitulo'),
+    meta: document.getElementById('modalMeta'),
+    resumo: document.getElementById('modalResumo'),
+    just: document.getElementById('modalJust'),
+    areasWrap: document.getElementById('modalAreasWrap'),
+    areas: document.getElementById('modalAreas'),
+    tiposWrap: document.getElementById('modalTiposWrap'),
+    tipos: document.getElementById('modalTipos'),
+    abrangenciaWrap: document.getElementById('modalAbrangenciaWrap'),
+    abrangencia: document.getElementById('modalAbrangencia'),
+    autoresWrap: document.getElementById('modalAutoresWrap'),
+    autores: document.getElementById('modalAutores'),
+    fonte: document.getElementById('modalFonte'),
+  }};
+
+  function abrirModal(d) {{
+    const nivel = d.nivel || 'sem';
+    modalEl.badge.className = `badge ${{nivel}}`;
+    modalEl.badge.textContent = d.nivel || '—';
+    modalEl.titulo.innerHTML = `<a href="${{esc(d.url)}}" target="_blank" rel="noopener">${{esc(d.pl)}}</a>`;
+
+    const meta = [`<span>📅 ${{esc(d.data)}}</span>`];
+    if (d.orgao) meta.push(`<span>📍 ${{esc(d.orgao)}}</span>`);
+    if (d.tramitacaoData) meta.push(`<span>🔄 ${{esc(d.tramitacaoDesc || 'última movimentação')}} — ${{esc(d.tramitacaoData)}}</span>`);
+    modalEl.meta.innerHTML = meta.join('');
+
+    modalEl.resumo.textContent = d.resumo;
+
+    if (d.justificativa) {{ modalEl.just.hidden = false; modalEl.just.textContent = '💡 ' + d.justificativa; }}
+    else modalEl.just.hidden = true;
+
+    if (d.areas.length) {{
+      modalEl.areasWrap.hidden = false;
+      modalEl.areas.innerHTML = d.areas.map(a => `<span class="tag" data-area="${{esc(a)}}">${{esc(a)}}</span>`).join('');
+    }} else modalEl.areasWrap.hidden = true;
+
+    if (d.tipos.length) {{
+      modalEl.tiposWrap.hidden = false;
+      modalEl.tipos.innerHTML = d.tipos.map(t => `<span class="tag">${{esc(t)}}</span>`).join('');
+    }} else modalEl.tiposWrap.hidden = true;
+
+    if (d.abrangencia) {{ modalEl.abrangenciaWrap.hidden = false; modalEl.abrangencia.textContent = d.abrangencia; }}
+    else modalEl.abrangenciaWrap.hidden = true;
+
+    if (d.autores) {{ modalEl.autoresWrap.hidden = false; modalEl.autores.textContent = d.autores; }}
+    else modalEl.autoresWrap.hidden = true;
+
+    const origem = ROTULO_FONTE[d.fonte] || '—';
+    modalEl.fonte.className = `fonte ${{d.fonte || ''}}`;
+    modalEl.fonte.textContent = origem;
+
+    el.modalBackdrop.classList.add('open');
+    document.body.classList.add('modal-open');
+    el.modalBackdrop.querySelectorAll('.tag').forEach(node => {{
+      node.addEventListener('click', () => {{ fecharModal(); el.fArea.value = node.dataset.area; render(); }});
+    }});
+  }}
+
+  function fecharModal() {{
+    el.modalBackdrop.classList.remove('open');
+    document.body.classList.remove('modal-open');
+  }}
+
+  el.modalClose.addEventListener('click', fecharModal);
+  el.modalBackdrop.addEventListener('click', (e) => {{ if (e.target === el.modalBackdrop) fecharModal(); }});
+  document.addEventListener('keydown', (e) => {{ if (e.key === 'Escape') fecharModal(); }});
 
   function render() {{
     paginaAtual = 1;
@@ -504,10 +666,14 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
       : '<div class="vazio">Nenhum PL encontrado com esses filtros.</div>';
 
     el.corpo.querySelectorAll('.tag').forEach(node => {{
-      node.addEventListener('click', () => {{ el.fArea.value = node.dataset.area; render(); }});
+      node.addEventListener('click', (e) => {{ e.stopPropagation(); el.fArea.value = node.dataset.area; render(); }});
     }});
-    el.corpo.querySelectorAll('.resumo').forEach(node => {{
-      node.addEventListener('click', () => node.classList.toggle('clamp'));
+    el.corpo.querySelectorAll('.item').forEach(node => {{
+      node.addEventListener('click', (e) => {{
+        if (e.target.closest('a')) return; // deixa o link do PL navegar normalmente
+        const d = PORID.get(Number(node.dataset.id));
+        if (d) abrirModal(d);
+      }});
     }});
 
     el.rodape.innerHTML = visiveis.length < itens.length
@@ -518,6 +684,8 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
 
   el.busca.addEventListener('input', render);
   el.fArea.addEventListener('change', render);
+  el.fOrgao.addEventListener('change', render);
+  el.fSituacao.addEventListener('change', render);
   el.fOrdem.addEventListener('change', render);
   el.limpar.addEventListener('click', () => {{
     el.busca.value = '';
@@ -525,7 +693,7 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     el.fFonte.dataset.value = 'todos';
     el.fNivel.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
     el.fFonte.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
-    el.fArea.value = 'todos'; el.fOrdem.value = 'data_desc';
+    el.fArea.value = 'todos'; el.fOrgao.value = 'todos'; el.fSituacao.value = 'todos'; el.fOrdem.value = 'data_desc';
     render();
   }});
 

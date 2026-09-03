@@ -77,6 +77,7 @@ def coletar_e_classificar(dias: int, tipos: list[str], tem_ia: bool) -> None:
             ementa = detalhe.get("ementa", "") or ""
             url_inteiro_teor = detalhe.get("urlInteiroTeor")
             texto = pdf_extract.extrair_texto(url_inteiro_teor)
+            status = detalhe.get("statusProposicao") or {}
 
             registro = {
                 "id": p["id"],
@@ -88,6 +89,9 @@ def coletar_e_classificar(dias: int, tipos: list[str], tem_ia: bool) -> None:
                 "autores": ", ".join(autores),
                 "url_camara": _URL_FICHA.format(id=p["id"]),
                 "url_inteiro_teor": url_inteiro_teor,
+                "ultima_tramitacao_data": status.get("dataHora"),
+                "ultima_tramitacao_descricao": status.get("descricaoSituacao") or status.get("descricaoTramitacao"),
+                "orgao_atual": status.get("siglaOrgao"),
             }
 
             # Camada 1: heurística por palavras-chave, sempre roda e nunca falha.
