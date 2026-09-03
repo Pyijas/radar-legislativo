@@ -1,56 +1,14 @@
-"""
-Geração do painel HTML — duas páginas estáticas autocontidas (index.html com
-todos os PLs + gráficos, salvos.html com só os PLs marcados pelo usuário),
-compartilhando os mesmos dados via dados.js e a mesma lógica de card/modal.
-"""
-from __future__ import annotations
-
-import json
-from datetime import datetime
-from pathlib import Path
-
-REPO_URL = "https://github.com/Pyijas/radar-legislativo"
-
-
-def _parse_lista(valor):
-    if not valor:
-        return []
-    if isinstance(valor, str):
-        try:
-            return json.loads(valor)
-        except (TypeError, json.JSONDecodeError):
-            return [valor]
-    return list(valor)
-
-
-def _linha_para_dado(l: dict) -> dict:
-    """Converte uma linha do SQLite pro formato compacto consumido pelo JS do relatório."""
-    return {
-        "id": l["id"],
-        "pl": f"{l['sigla_tipo']} {l['numero']}/{l['ano']}",
-        "data": (l["data_apresentacao"] or "")[:10],
-        "url": l["url_camara"] or "",
-        "ementa": l["ementa"] or "",
-        "resumo": l["resumo"] or l["ementa"] or "",
-        "justificativa": l["justificativa_relevancia"] or "",
-        "nivel": l["nivel_impacto"],
-        "abrangencia": l["abrangencia"] or "",
-        "areas": _parse_lista(l["areas_impactadas"]),
-        "tipos": _parse_lista(l["tipo_impacto"]),
-        "fonte": l["fonte_classificacao"],
-        "autores": l["autores"] or "",
-        "tramitacaoData": (l["ultima_tramitacao_data"] or "")[:10],
-        "tramitacaoDesc": l["ultima_tramitacao_descricao"] or "",
-        "orgao": l["orgao_atual"] or "",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Blocos compartilhados entre index.html e salvos.html (strings simples, sem
-# f-string, pra não precisar escapar chaves de CSS/JS).
-# ---------------------------------------------------------------------------
-
-_ESTILOS = """<style>
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLs Salvos — Radar Legislativo</title>
+<meta name="description" content="Monitoramento automático de projetos de lei federais com impacto no setor de saúde e farmacêutico, classificados por IA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
   :root {
     color-scheme: light dark;
     --bg: #f5f6f8; --bg-soft: #eef0f3; --card: #ffffff; --border: #e4e6ea;
@@ -229,19 +187,43 @@ _ESTILOS = """<style>
     .topbar { padding: 0.8rem 1rem; }
     .container { padding: 1.1rem; }
   }
-</style>"""
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>Radar Legislativo</h1>
+        <div class="sub">Seus PLs salvos</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a href="index.html">← lista completa</a>
+      <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg> código-fonte</a>
+    </div>
+  </div>
 
-_ICONE_GITHUB = (
-    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">'
-    '<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49'
-    '-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72'
-    ' 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36'
-    '-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44'
-    ' 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93'
-    '-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>'
-)
+  <div class="container">
+    <div class="toolbar rise">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="busca" placeholder="Buscar nos salvos...">
+      </div>
+      <select class="pill" id="fOrdem">
+        <option value="data_desc">Mais recentes</option>
+        <option value="data_asc">Mais antigos</option>
+        <option value="impacto">Maior impacto</option>
+      </select>
+      <button class="clear-btn" id="exportar">Exportar CSV</button>
+      <button class="clear-btn" id="limparTudo">Limpar todos</button>
+    </div>
 
-_MODAL_HTML = """  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="contagem" id="contagem"></div>
+    <div id="corpo"></div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
     <div class="modal" id="modal">
       <div class="modal-top">
         <div class="modal-top-left">
@@ -271,9 +253,26 @@ _MODAL_HTML = """  <div class="modal-backdrop" id="modalBackdrop">
         <p id="modalAutores"></p>
       </div>
     </div>
-  </div>"""
+  </div>
 
-_JS_HELPERS = """
+  <footer>
+    Dados públicos da API da Câmara dos Deputados · Classificação por IA
+    · <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener">ver código-fonte</a>
+  </footer>
+
+<script src="dados.js"></script>
+<script>
+(function() {
+  const DADOS = window.RADAR_DADOS || [];
+  const RANK = {alto: 0, "médio": 1, baixo: 2};
+
+  const el = {
+    busca: document.getElementById('busca'),
+    fOrdem: document.getElementById('fOrdem'),
+    contagem: document.getElementById('contagem'),
+    corpo: document.getElementById('corpo'),
+  };
+
   const SALVOS_KEY = 'radar_salvos_v1';
   function getSalvos() { try { return JSON.parse(localStorage.getItem(SALVOS_KEY) || '[]'); } catch (e) { return []; } }
   function setSalvos(arr) { try { localStorage.setItem(SALVOS_KEY, JSON.stringify(arr)); } catch (e) {} }
@@ -294,9 +293,8 @@ _JS_HELPERS = """
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
     });
   }
-"""
 
-_JS_ITEM_MODAL = """
+
   const PORID = new Map(DADOS.map(function(d) { return [d.id, d]; }));
 
   function itemHtml(d) {
@@ -439,439 +437,65 @@ _JS_ITEM_MODAL = """
       });
     });
   }
-"""
 
+  window.__aoMudarSalvos = function() { atualizarContadorSalvos(); render(); };
 
-def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, script: str) -> str:
-    return f"""<!doctype html>
-<html lang="pt-br">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{titulo}</title>
-<meta name="description" content="Monitoramento automático de projetos de lei federais com impacto no setor de saúde e farmacêutico, classificados por IA.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-{_ESTILOS}
-</head>
-<body>
-  <div class="topbar">
-    <div class="brand">
-      <span class="dot"></span>
-      <div>
-        <h1>Radar Legislativo</h1>
-        <div class="sub">{subtitulo}</div>
-      </div>
-    </div>
-    <div class="topbar-right">
-      {topbar_extra}
-      <a href="{REPO_URL}" target="_blank" rel="noopener">{_ICONE_GITHUB} código-fonte</a>
-    </div>
-  </div>
-
-  <div class="container">
-{corpo_html}
-  </div>
-
-{_MODAL_HTML}
-
-  <footer>
-    Dados públicos da API da Câmara dos Deputados · Classificação por IA
-    · <a href="{REPO_URL}" target="_blank" rel="noopener">ver código-fonte</a>
-  </footer>
-
-<script src="dados.js"></script>
-<script>
-{script}
-</script>
-</body>
-</html>"""
-
-
-def gerar_html(linhas: list, caminho: str | Path) -> Path:
-    caminho = Path(caminho)
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-
-    dados = [_linha_para_dado(l) for l in linhas]
-    dados_json = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/")
-    (caminho.parent / "dados.js").write_text(f"window.RADAR_DADOS = {dados_json};\n", encoding="utf-8")
-
-    gerado_em = datetime.now().strftime("%d/%m/%Y às %H:%M")
-
-    topbar_index = (
-        f'<span class="live"><span class="pulse"></span> Atualizado {gerado_em}</span>'
-        '<a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>'
-    )
-    corpo_index = """    <div class="kpis rise" id="kpis"></div>
-
-    <div class="charts rise" style="animation-delay:.05s">
-      <div class="panel">
-        <h2>Impacto</h2>
-        <div class="chart-wrap"><canvas id="chartImpacto"></canvas></div>
-      </div>
-      <div class="panel">
-        <h2>Áreas mais frequentes</h2>
-        <div class="chart-wrap"><canvas id="chartAreas"></canvas></div>
-      </div>
-      <div class="panel">
-        <h2>Novos PLs por mês</h2>
-        <div class="chart-wrap"><canvas id="chartMeses"></canvas></div>
-      </div>
-    </div>
-
-    <div class="toolbar rise" style="animation-delay:.1s">
-      <div class="search">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="busca" placeholder="Buscar por texto, ementa, área, autor...">
-      </div>
-      <div class="segmented" id="fNivel" data-value="todos">
-        <button data-v="todos" class="active">Todos</button>
-        <button data-v="alto">Alto</button>
-        <button data-v="médio">Médio</button>
-        <button data-v="baixo">Baixo</button>
-      </div>
-      <select class="pill" id="fArea"><option value="todos">Área: todas</option></select>
-      <select class="pill" id="fOrgao"><option value="todos">Órgão: todos</option></select>
-      <select class="pill" id="fSituacao"><option value="todos">Situação: todas</option></select>
-      <select class="pill" id="fOrdem">
-        <option value="data_desc">Mais recentes</option>
-        <option value="data_asc">Mais antigos</option>
-        <option value="impacto">Maior impacto</option>
-      </select>
-      <button class="clear-btn" id="limpar">Limpar</button>
-    </div>
-
-    <div class="contagem" id="contagem"></div>
-    <div id="corpo"></div>
-    <div class="rodape-lista" id="rodape"></div>"""
-
-    script_index = f"""(function() {{
-  const DADOS = window.RADAR_DADOS || [];
-  const RANK = {{alto: 0, "médio": 1, baixo: 2}};
-  const PAGE_SIZE = 24;
-  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-  const css = getComputedStyle(document.documentElement);
-  const cor = (v) => css.getPropertyValue(v).trim();
-  const COR_NIVEL = {{alto: cor('--alto'), "médio": cor('--medio'), baixo: cor('--baixo')}};
-
-  const el = {{
-    busca: document.getElementById('busca'),
-    fNivel: document.getElementById('fNivel'),
-    fArea: document.getElementById('fArea'),
-    fOrgao: document.getElementById('fOrgao'),
-    fSituacao: document.getElementById('fSituacao'),
-    fOrdem: document.getElementById('fOrdem'),
-    limpar: document.getElementById('limpar'),
-    kpis: document.getElementById('kpis'),
-    contagem: document.getElementById('contagem'),
-    corpo: document.getElementById('corpo'),
-    rodape: document.getElementById('rodape'),
-  }};
-
-  let paginaAtual = 1;
-  let kpisRenderizados = false;
-{_JS_HELPERS}
-{_JS_ITEM_MODAL}
-  window.__filtrarPorArea = function(area) {{ el.fArea.value = area; render(); }};
-  window.__aoMudarSalvos = atualizarContadorSalvos;
-
-  function preencherSelect(select, valores) {{
-    const opts = Array.from(new Set(valores)).filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    for (const v of opts) {{
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      select.appendChild(opt);
-    }}
-  }}
-  preencherSelect(el.fArea, DADOS.flatMap(d => d.areas));
-  preencherSelect(el.fOrgao, DADOS.map(d => d.orgao));
-  preencherSelect(el.fSituacao, DADOS.map(d => d.tramitacaoDesc));
-
-  function segValor(container) {{ return container.dataset.value; }}
-  document.querySelectorAll('.segmented').forEach(seg => {{
-    seg.addEventListener('click', (e) => {{
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      seg.dataset.value = btn.dataset.v;
-      seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
-      render();
-    }});
-  }});
-
-  function aplicarFiltros() {{
-    const busca = el.busca.value.trim().toLowerCase();
-    const nivel = segValor(el.fNivel);
-    const area = el.fArea.value;
-    const orgao = el.fOrgao.value;
-    const situacao = el.fSituacao.value;
-
-    let itens = DADOS.filter(d => {{
-      if (nivel !== 'todos' && d.nivel !== nivel) return false;
-      if (area !== 'todos' && !d.areas.includes(area)) return false;
-      if (orgao !== 'todos' && d.orgao !== orgao) return false;
-      if (situacao !== 'todos' && d.tramitacaoDesc !== situacao) return false;
-      if (busca) {{
-        const alvo = (d.pl + ' ' + d.resumo + ' ' + d.areas.join(' ') + ' ' + d.autores + ' ' + d.orgao).toLowerCase();
-        if (!alvo.includes(busca)) return false;
-      }}
-      return true;
-    }});
-
-    const ordem = el.fOrdem.value;
-    if (ordem === 'data_asc') itens.sort((a, b) => a.data.localeCompare(b.data));
-    else if (ordem === 'impacto') itens.sort((a, b) => (RANK[a.nivel] ?? 3) - (RANK[b.nivel] ?? 3));
-    else itens.sort((a, b) => b.data.localeCompare(a.data));
-
-    return itens;
-  }}
-
-  function animarNumero(elemento, alvo) {{
-    const inicio = performance.now();
-    const duracao = 700;
-    function passo(agora) {{
-      const t = Math.min(1, (agora - inicio) / duracao);
-      const ease = 1 - Math.pow(1 - t, 3);
-      elemento.textContent = Math.round(alvo * ease).toLocaleString('pt-BR');
-      if (t < 1) requestAnimationFrame(passo);
-    }}
-    requestAnimationFrame(passo);
-  }}
-
-  function renderKpis(itens) {{
-    const porNivel = {{alto: 0, "médio": 0, baixo: 0}};
-    for (const d of itens) if (d.nivel in porNivel) porNivel[d.nivel]++;
-    const cards = [
-      ['', itens.length, 'Total'],
-      ['alto', porNivel.alto, 'Impacto alto'],
-      ['medio', porNivel["médio"], 'Impacto médio'],
-      ['baixo', porNivel.baixo, 'Impacto baixo'],
-    ];
-    if (!kpisRenderizados) {{
-      el.kpis.innerHTML = cards.map(([cls, n, l], i) =>
-        `<div class="kpi ${{cls}}"><div class="n" data-i="${{i}}">0</div><div class="l">${{l}}</div></div>`
-      ).join('');
-      kpisRenderizados = true;
-    }}
-    cards.forEach(([, n], i) => animarNumero(el.kpis.querySelector(`[data-i="${{i}}"]`), n));
-  }}
-
-  let chImpacto, chAreas, chMeses;
-  function renderCharts(itens) {{
-    const porNivel = {{alto: 0, "médio": 0, baixo: 0}};
-    for (const d of itens) if (d.nivel in porNivel) porNivel[d.nivel]++;
-
-    const contagemAreas = new Map();
-    for (const d of itens) for (const a of d.areas) contagemAreas.set(a, (contagemAreas.get(a) || 0) + 1);
-    const topAreas = Array.from(contagemAreas.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).reverse();
-
-    const porMes = new Array(12).fill(0);
-    for (const d of itens) {{
-      const m = parseInt(d.data.slice(5, 7), 10) - 1;
-      if (m >= 0 && m < 12) porMes[m]++;
-    }}
-
-    const textoCor = cor('--muted');
-    const gridCor = cor('--border');
-    Chart.defaults.font.family = "'Inter', sans-serif";
-    Chart.defaults.font.size = 11;
-    Chart.defaults.color = textoCor;
-
-    if (chImpacto) chImpacto.destroy();
-    chImpacto = new Chart(document.getElementById('chartImpacto'), {{
-      type: 'doughnut',
-      data: {{
-        labels: ['Alto', 'Médio', 'Baixo'],
-        datasets: [{{ data: [porNivel.alto, porNivel["médio"], porNivel.baixo],
-                      backgroundColor: [COR_NIVEL.alto, COR_NIVEL["médio"], COR_NIVEL.baixo],
-                      borderWidth: 0, hoverOffset: 6 }}]
-      }},
-      options: {{
-        maintainAspectRatio: false, cutout: '68%',
-        plugins: {{ legend: {{ position: 'bottom', labels: {{ boxWidth: 8, boxHeight: 8, padding: 12, usePointStyle: true, pointStyle: 'circle' }} }} }}
-      }}
-    }});
-
-    if (chAreas) chAreas.destroy();
-    chAreas = new Chart(document.getElementById('chartAreas'), {{
-      type: 'bar',
-      data: {{
-        labels: topAreas.map(a => a[0]),
-        datasets: [{{ data: topAreas.map(a => a[1]), backgroundColor: cor('--accent'), borderRadius: 5, barThickness: 12 }}]
-      }},
-      options: {{
-        indexAxis: 'y', maintainAspectRatio: false,
-        plugins: {{ legend: {{ display: false }} }},
-        scales: {{
-          x: {{ grid: {{ color: gridCor }}, ticks: {{ precision: 0 }} }},
-          y: {{ grid: {{ display: false }}, ticks: {{ font: {{ size: 10.5 }} }} }}
-        }}
-      }}
-    }});
-
-    if (chMeses) chMeses.destroy();
-    chMeses = new Chart(document.getElementById('chartMeses'), {{
-      type: 'bar',
-      data: {{
-        labels: MESES,
-        datasets: [{{ data: porMes, backgroundColor: cor('--accent'), borderRadius: 5, barThickness: 14 }}]
-      }},
-      options: {{
-        maintainAspectRatio: false,
-        plugins: {{ legend: {{ display: false }} }},
-        scales: {{
-          x: {{ grid: {{ display: false }} }},
-          y: {{ grid: {{ color: gridCor }}, ticks: {{ precision: 0 }} }}
-        }}
-      }}
-    }});
-  }}
-
-  function render() {{
-    paginaAtual = 1;
-    renderPagina();
-  }}
-
-  function renderPagina() {{
-    const itens = aplicarFiltros();
-    renderKpis(itens);
-    renderCharts(itens);
-    el.contagem.innerHTML = `<b>${{itens.length.toLocaleString('pt-BR')}}</b> PL(s) encontrados`;
-
-    const visiveis = itens.slice(0, paginaAtual * PAGE_SIZE);
-    el.corpo.innerHTML = visiveis.length
-      ? visiveis.map(itemHtml).join('')
-      : '<div class="vazio">Nenhum PL encontrado com esses filtros.</div>';
-    ligarCliquesGrid(el.corpo);
-
-    el.rodape.innerHTML = visiveis.length < itens.length
-      ? `<button id="maisBtn">Mostrar mais (${{(itens.length - visiveis.length).toLocaleString('pt-BR')}} restantes)</button>` : '';
-    const maisBtn = document.getElementById('maisBtn');
-    if (maisBtn) maisBtn.addEventListener('click', () => {{ paginaAtual++; renderPagina(); }});
-  }}
-
-  el.busca.addEventListener('input', render);
-  el.fArea.addEventListener('change', render);
-  el.fOrgao.addEventListener('change', render);
-  el.fSituacao.addEventListener('change', render);
-  el.fOrdem.addEventListener('change', render);
-  el.limpar.addEventListener('click', () => {{
-    el.busca.value = '';
-    el.fNivel.dataset.value = 'todos';
-    el.fNivel.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
-    el.fArea.value = 'todos'; el.fOrgao.value = 'todos'; el.fSituacao.value = 'todos'; el.fOrdem.value = 'data_desc';
-    render();
-  }});
-
-  atualizarContadorSalvos();
-  render();
-}})();"""
-
-    doc_index = _pagina(
-        "Radar Legislativo — Saúde/Farma", "Saúde &amp; Farma no Congresso Nacional",
-        topbar_index, corpo_index,
-        '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>\n' + script_index,
-    )
-    caminho.write_text(doc_index, encoding="utf-8")
-
-    _gerar_salvos_html(caminho.parent / "salvos.html")
-    return caminho
-
-
-def _gerar_salvos_html(caminho: Path) -> Path:
-    topbar_salvos = f'<a href="index.html">← lista completa</a>'
-    corpo_salvos = """    <div class="toolbar rise">
-      <div class="search">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="busca" placeholder="Buscar nos salvos...">
-      </div>
-      <select class="pill" id="fOrdem">
-        <option value="data_desc">Mais recentes</option>
-        <option value="data_asc">Mais antigos</option>
-        <option value="impacto">Maior impacto</option>
-      </select>
-      <button class="clear-btn" id="exportar">Exportar CSV</button>
-      <button class="clear-btn" id="limparTudo">Limpar todos</button>
-    </div>
-
-    <div class="contagem" id="contagem"></div>
-    <div id="corpo"></div>"""
-
-    script_salvos = f"""(function() {{
-  const DADOS = window.RADAR_DADOS || [];
-  const RANK = {{alto: 0, "médio": 1, baixo: 2}};
-
-  const el = {{
-    busca: document.getElementById('busca'),
-    fOrdem: document.getElementById('fOrdem'),
-    contagem: document.getElementById('contagem'),
-    corpo: document.getElementById('corpo'),
-  }};
-{_JS_HELPERS}
-{_JS_ITEM_MODAL}
-  window.__aoMudarSalvos = function() {{ atualizarContadorSalvos(); render(); }};
-
-  function itensSalvos() {{
+  function itensSalvos() {
     const ids = new Set(getSalvos());
     return DADOS.filter(d => ids.has(d.id));
-  }}
+  }
 
-  function aplicarFiltros() {{
+  function aplicarFiltros() {
     const busca = el.busca.value.trim().toLowerCase();
     let itens = itensSalvos();
-    if (busca) {{
+    if (busca) {
       itens = itens.filter(d => (d.pl + ' ' + d.resumo + ' ' + d.areas.join(' ') + ' ' + d.orgao).toLowerCase().includes(busca));
-    }}
+    }
     const ordem = el.fOrdem.value;
     if (ordem === 'data_asc') itens.sort((a, b) => a.data.localeCompare(b.data));
     else if (ordem === 'impacto') itens.sort((a, b) => (RANK[a.nivel] ?? 3) - (RANK[b.nivel] ?? 3));
     else itens.sort((a, b) => b.data.localeCompare(a.data));
     return itens;
-  }}
+  }
 
-  function render() {{
+  function render() {
     const itens = aplicarFiltros();
-    el.contagem.innerHTML = itens.length ? `<b>${{itens.length}}</b> PL(s) salvo(s)` : '';
+    el.contagem.innerHTML = itens.length ? `<b>${itens.length}</b> PL(s) salvo(s)` : '';
     el.corpo.innerHTML = itens.length
       ? itens.map(itemHtml).join('')
       : '<div class="vazio">Você ainda não salvou nenhum PL.<br>Volte à <a href="index.html">lista completa</a> e clique na estrela ☆ dos que quiser guardar aqui.</div>';
     ligarCliquesGrid(el.corpo);
-  }}
+  }
 
-  function exportarCSV() {{
+  function exportarCSV() {
     const itens = aplicarFiltros();
     const cabecalho = ['PL', 'Data', 'Impacto', 'Áreas', 'Órgão', 'Situação', 'Resumo', 'Link'];
     const linhas = [cabecalho].concat(itens.map(d => [
       d.pl, d.data, d.nivel || '', d.areas.join('; '), d.orgao || '', d.tramitacaoDesc || '', d.resumo, d.url,
     ]));
-    const csv = linhas.map(l => l.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\\r\\n');
-    const blob = new Blob(['\\ufeff' + csv], {{ type: 'text/csv;charset=utf-8' }});
+    const csv = linhas.map(l => l.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'pls_salvos.csv';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }}
+  }
 
   el.busca.addEventListener('input', render);
   el.fOrdem.addEventListener('change', render);
   document.getElementById('exportar').addEventListener('click', exportarCSV);
-  document.getElementById('limparTudo').addEventListener('click', () => {{
-    if (itensSalvos().length && confirm('Remover todos os PLs salvos?')) {{
+  document.getElementById('limparTudo').addEventListener('click', () => {
+    if (itensSalvos().length && confirm('Remover todos os PLs salvos?')) {
       setSalvos([]);
       atualizarContadorSalvos();
       render();
-    }}
-  }});
+    }
+  });
 
   atualizarContadorSalvos();
   render();
-}})();"""
-
-    doc_salvos = _pagina(
-        "PLs Salvos — Radar Legislativo", "Seus PLs salvos",
-        topbar_salvos, corpo_salvos, script_salvos,
-    )
-    caminho.write_text(doc_salvos, encoding="utf-8")
-    return caminho
+})();
+</script>
+</body>
+</html>

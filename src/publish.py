@@ -1,9 +1,10 @@
 """
 Publicação automática do relatório no GitHub Pages.
 
-Copia o relatório mais recente para docs/index.html e faz commit + push, se
-houver um repositório git configurado com remoto. Falha silenciosamente (só
-avisa) se não houver rede, remoto ou repositório — nunca derruba a coleta.
+Copia o relatório mais recente (index.html, dados.js e salvos.html) para
+docs/ e faz commit + push, se houver um repositório git configurado com
+remoto. Falha silenciosamente (só avisa) se não houver rede, remoto ou
+repositório — nunca derruba a coleta.
 """
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 _RAIZ = Path(__file__).resolve().parent.parent
-_DOCS_INDEX = _RAIZ / "docs" / "index.html"
+_DOCS = _RAIZ / "docs"
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
@@ -23,7 +24,8 @@ def _git(*args: str) -> subprocess.CompletedProcess:
 
 
 def publicar(relatorio_html: Path) -> tuple[bool, str]:
-    """Copia o relatório pra docs/index.html e publica via git push.
+    """Copia o relatório (e os arquivos irmãos dados.js/salvos.html) pra docs/
+    e publica via git push.
 
     Retorna (sucesso, mensagem) — sucesso=False com mensagem explicativa em
     qualquer caso que não impeça o resto do script de rodar normalmente.
@@ -32,14 +34,23 @@ def publicar(relatorio_html: Path) -> tuple[bool, str]:
         return False, "sem repositório git configurado, pulando publicação"
 
     try:
-        _DOCS_INDEX.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(relatorio_html, _DOCS_INDEX)
+        _DOCS.mkdir(parents=True, exist_ok=True)
+        origem = Path(relatorio_html)
+        pares = [
+            (origem, _DOCS / "index.html"),
+            (origem.parent / "dados.js", _DOCS / "dados.js"),
+            (origem.parent / "salvos.html", _DOCS / "salvos.html"),
+        ]
+        for src, dst in pares:
+            if src.exists():
+                shutil.copy(src, dst)
 
-        status = _git("status", "--porcelain", "--", "docs/index.html")
+        arquivos_rel = ["docs/index.html", "docs/dados.js", "docs/salvos.html"]
+        status = _git("status", "--porcelain", "--", *arquivos_rel)
         if not status.stdout.strip():
             return False, "sem mudanças no relatório desde a última publicação"
 
-        _git("add", "docs/index.html")
+        _git("add", *arquivos_rel)
         commit = _git(
             "commit", "-m",
             "Atualiza relatório automático\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>",
