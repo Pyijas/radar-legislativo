@@ -7,13 +7,17 @@ limit, sem crédito, fora do ar). É deliberadamente mais grosseira que a
 classificação por IA — não entende contexto, só detecta a presença de termos
 na ementa/inteiro teor — então tende a super-detectar relevância. Serve para
 nunca deixar o relatório vazio, não para substituir de vez a IA.
+
+Suporta português (idioma="pt", padrão — Câmara/Senado) e inglês
+(idioma="en" — Congresso dos EUA), com dois dicionários de termos
+independentes.
 """
 from __future__ import annotations
 
 import re
 
 # padrão (regex, case-insensitive) -> área impactada
-_AREAS = {
+_AREAS_PT = {
     r"farmac[êe]utic": "Indústria farmacêutica",
     r"medicamento": "Medicamentos",
     r"\bANVISA\b": "ANVISA / regulação sanitária",
@@ -32,7 +36,7 @@ _AREAS = {
 }
 
 # padrão -> tipo de impacto (mesmos rótulos usados pela classificação por IA)
-_TIPO_IMPACTO = {
+_TIPO_IMPACTO_PT = {
     r"tribut|imposto|isen[çc][ãa]o fiscal": "tributário",
     r"regulament|registro sanit[áa]rio|\bANVISA\b": "regulatório",
     r"trabalh|jornada|empregad": "trabalhista",
@@ -41,13 +45,48 @@ _TIPO_IMPACTO = {
     r"\bpaciente|consumidor|direito": "direitos do paciente/consumidor",
 }
 
+# Equivalentes em inglês, pro Congresso dos EUA. Os rótulos de saída ficam em
+# português (mesmo vocabulário do restante do painel) — só o texto de entrada
+# e os termos buscados é que são em inglês.
+_AREAS_EN = {
+    r"pharmac(y|eutical)": "Indústria farmacêutica",
+    r"\bdrug(s)?\b|medication": "Medicamentos",
+    r"\bFDA\b|food and drug administration": "FDA / regulação sanitária",
+    r"health insurance|\bmedicare\b|\bmedicaid\b": "Planos de saúde",
+    r"insurer|health plan": "Operadoras de saúde",
+    r"hospital": "Hospitais",
+    r"public health": "Saúde pública",
+    r"\bpharmacy\b|\bpharmacies\b": "Farmácias",
+    r"vaccin": "Imunização",
+    r"medical (device|supply|supplies)": "Insumos de saúde",
+    r"physician|\bnurse(s)?\b|health (care )?provider": "Profissionais de saúde",
+    r"\bpatient": "Direitos do paciente",
+    r"medical device": "Dispositivos médicos",
+    r"telehealth|telemedicine": "Telemedicina",
+}
 
-def classificar(ementa: str, texto_inteiro_teor: str | None) -> dict:
+_TIPO_IMPACTO_EN = {
+    r"\btax\b|taxation|tax exemption": "tributário",
+    r"regulat|\bFDA\b|licensure": "regulatório",
+    r"labor|employment|workforce": "trabalhista",
+    r"competition|market|antitrust|monopoly": "concorrencial",
+    r"appropriation|federal spending|\bbudget\b|medicare|medicaid": "orçamentário/gasto público",
+    r"\bpatient|consumer|\bright(s)?\b": "direitos do paciente/consumidor",
+}
+
+_DICIONARIOS = {
+    "pt": (_AREAS_PT, _TIPO_IMPACTO_PT),
+    "en": (_AREAS_EN, _TIPO_IMPACTO_EN),
+}
+
+
+def classificar(ementa: str, texto_inteiro_teor: str | None, idioma: str = "pt") -> dict:
     """Classificação por palavras-chave. Determinística, gratuita, nunca levanta erro."""
+    areas_dict, tipos_dict = _DICIONARIOS.get(idioma, _DICIONARIOS["pt"])
     base = f"{ementa or ''}\n{texto_inteiro_teor or ''}"
 
-    areas = sorted({rotulo for padrao, rotulo in _AREAS.items() if re.search(padrao, base, re.IGNORECASE)})
-    tipos = sorted({rotulo for padrao, rotulo in _TIPO_IMPACTO.items() if re.search(padrao, base, re.IGNORECASE)})
+    areas = sorted({rotulo for padrao, rotulo in areas_dict.items() if re.search(padrao, base, re.IGNORECASE)})
+    tipos = sorted({rotulo for padrao, rotulo in tipos_dict.items() if re.search(padrao, base, re.IGNORECASE)})
 
     relevante = len(areas) > 0
     if len(areas) >= 3:

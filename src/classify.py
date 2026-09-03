@@ -17,16 +17,22 @@ from pydantic import BaseModel
 
 _SYSTEM_PROMPT = """\
 Você é um analista legislativo especializado em regulação de saúde e da indústria \
-farmacêutica no Brasil. Sua tarefa é ler a ementa (e, quando disponível, o inteiro \
-teor) de um projeto de lei federal e avaliar objetivamente seu impacto potencial \
-sobre o setor de saúde/farma — incluindo hospitais, planos de saúde, indústria \
-farmacêutica, distribuidoras, farmácias, profissionais de saúde, ANVISA/ANS e \
-pacientes.
+farmacêutica, cobrindo o Congresso Nacional do Brasil (Câmara dos Deputados e \
+Senado Federal) e o Congresso dos Estados Unidos. Sua tarefa é ler a ementa (e, \
+quando disponível, um trecho do inteiro teor ou resumo oficial) de um projeto de \
+lei federal e avaliar objetivamente seu impacto potencial sobre o setor de \
+saúde/farma — incluindo hospitais, planos de saúde, indústria farmacêutica, \
+distribuidoras, farmácias, profissionais de saúde, agências reguladoras (ANVISA/ANS \
+no Brasil, FDA/CMS nos EUA) e pacientes.
+
+O texto de entrada pode estar em português ou em inglês (projetos dos EUA) — \
+responda SEMPRE em português, independentemente do idioma do texto de entrada, \
+para manter o painel consistente.
 
 Seja criterioso: a maioria dos PLs tramitando não tem relação real com saúde/farma \
-mesmo quando classificados sob o tema "Saúde" pela Câmara (a classificação por tema \
-da Câmara é ampla). Marque relevante=false sempre que o impacto for nulo, indireto \
-ou puramente administrativo/simbólico (ex: datas comemorativas, homenagens).
+mesmo quando aparecem numa busca ampla por tema. Marque relevante=false sempre que \
+o impacto for nulo, indireto ou puramente administrativo/simbólico (ex: datas \
+comemorativas, homenagens, requerimentos de sessão especial).
 """
 
 TipoImpacto = Literal[

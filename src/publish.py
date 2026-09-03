@@ -1,10 +1,10 @@
 """
 Publicação automática do relatório no GitHub Pages.
 
-Copia o relatório mais recente (index.html, dados.js e salvos.html) para
-docs/ e faz commit + push, se houver um repositório git configurado com
-remoto. Falha silenciosamente (só avisa) se não houver rede, remoto ou
-repositório — nunca derruba a coleta.
+Copia o relatório mais recente (index.html, pais.html, dados.js e
+salvos.html) para docs/ e faz commit + push, se houver um repositório git
+configurado com remoto. Falha silenciosamente (só avisa) se não houver rede,
+remoto ou repositório — nunca derruba a coleta.
 """
 from __future__ import annotations
 
@@ -38,6 +38,7 @@ def publicar(relatorio_html: Path) -> tuple[bool, str]:
         origem = Path(relatorio_html)
         pares = [
             (origem, _DOCS / "index.html"),
+            (origem.parent / "pais.html", _DOCS / "pais.html"),
             (origem.parent / "dados.js", _DOCS / "dados.js"),
             (origem.parent / "salvos.html", _DOCS / "salvos.html"),
         ]
@@ -45,7 +46,7 @@ def publicar(relatorio_html: Path) -> tuple[bool, str]:
             if src.exists():
                 shutil.copy(src, dst)
 
-        arquivos_rel = ["docs/index.html", "docs/dados.js", "docs/salvos.html"]
+        arquivos_rel = ["docs/index.html", "docs/pais.html", "docs/dados.js", "docs/salvos.html"]
         status = _git("status", "--porcelain", "--", *arquivos_rel)
         if not status.stdout.strip():
             return False, "sem mudanças no relatório desde a última publicação"

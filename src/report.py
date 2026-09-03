@@ -1,13 +1,22 @@
 """
-Geração do painel HTML — duas páginas estáticas autocontidas (index.html com
-todos os PLs + gráficos, salvos.html com só os PLs marcados pelo usuário),
-compartilhando os mesmos dados via dados.js e a mesma lógica de card/modal.
+Geração do painel HTML — três páginas estáticas autocontidas compartilhando
+os mesmos dados via dados.js e a mesma lógica de card/modal:
+
+  index.html   hub: escolha de país (com contagem de PLs e destaque pro mais
+               relevante no momento), mais os países pesquisados mas ainda
+               não implementados, como "em breve".
+  pais.html    dashboard completo de um país (?p=BR, ?p=US, ...), com
+               filtro por casa legislativa quando o país tem mais de uma
+               (Câmara/Senado no Brasil, House/Senate nos EUA).
+  salvos.html  só os PLs marcados pelo usuário, de qualquer país/casa.
 """
 from __future__ import annotations
 
 import json
 from datetime import datetime
 from pathlib import Path
+
+from src import paises
 
 REPO_URL = "https://github.com/Pyijas/radar-legislativo"
 
@@ -23,13 +32,27 @@ def _parse_lista(valor):
     return list(valor)
 
 
+def _rotulo_pl(l: dict) -> str:
+    if l["pais"] == "US":
+        # aqui "ano" guarda o número do Congresso (ex: 119), não um ano-calendário
+        return f"{l['sigla_tipo']} {l['numero']} ({l['ano']}º Congresso)"
+    return f"{l['sigla_tipo']} {l['numero']}/{l['ano']}"
+
+
 def _linha_para_dado(l: dict) -> dict:
     """Converte uma linha do SQLite pro formato compacto consumido pelo JS do relatório."""
+    pais_info = paises.PAISES.get(l["pais"], {})
+    casa_label = pais_info.get("casas", {}).get(l["casa"], l["casa"])
     return {
-        "id": l["id"],
-        "pl": f"{l['sigla_tipo']} {l['numero']}/{l['ano']}",
+        "id": l["chave"],
+        "pais": l["pais"],
+        "paisNome": pais_info.get("nome", l["pais"]),
+        "bandeira": pais_info.get("bandeira", ""),
+        "casa": l["casa"],
+        "casaLabel": casa_label,
+        "pl": _rotulo_pl(l),
         "data": (l["data_apresentacao"] or "")[:10],
-        "url": l["url_camara"] or "",
+        "url": l["url_origem"] or "",
         "ementa": l["ementa"] or "",
         "resumo": l["resumo"] or l["ementa"] or "",
         "justificativa": l["justificativa_relevancia"] or "",
@@ -46,8 +69,8 @@ def _linha_para_dado(l: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Blocos compartilhados entre index.html e salvos.html (strings simples, sem
-# f-string, pra não precisar escapar chaves de CSS/JS).
+# Blocos compartilhados entre as três páginas (strings simples, sem f-string,
+# pra não precisar escapar chaves de CSS/JS).
 # ---------------------------------------------------------------------------
 
 _ESTILOS = """<style>
@@ -220,6 +243,36 @@ _ESTILOS = """<style>
   footer { text-align: center; padding: 2rem 1rem 3rem; color: var(--muted-2); font-size: 0.76rem; }
   footer a { color: var(--muted); text-decoration: underline; }
 
+  .hub-hero { text-align: center; padding: 1.5rem 0 2rem; }
+  .hub-hero h2 { font-size: 1.4rem; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+  .hub-hero p { color: var(--muted); font-size: 0.92rem; max-width: 560px; margin: 0 auto; line-height: 1.6; }
+  .secao-titulo { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+                   font-weight: 700; margin: 1.7rem 0 0.9rem; }
+  .secao-titulo a { color: var(--accent); text-transform: none; letter-spacing: normal; text-decoration: underline; }
+  .paises-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+  .pais-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+                padding: 1.4rem 1.5rem; box-shadow: var(--shadow); text-decoration: none; color: inherit;
+                display: flex; flex-direction: column; gap: 0.9rem; position: relative; overflow: hidden;
+                transition: transform .15s, border-color .15s; }
+  .pais-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .pais-card .flag { font-size: 2.1rem; line-height: 1; }
+  .pais-card h3 { margin: 0; font-size: 1.05rem; }
+  .pais-card .casas-lista { font-size: 0.74rem; color: var(--muted); margin-top: 0.15rem; }
+  .pais-card .stats { display: flex; gap: 1.1rem; margin-top: 0.1rem; align-items: flex-end; }
+  .pais-card .stats > div { display: flex; flex-direction: column; }
+  .pais-card .stats .n { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .pais-card .stats .n.alto { color: var(--alto); }
+  .pais-card .stats .l { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+  .pais-card .stats .aguardando { font-size: 0.8rem; color: var(--muted); font-style: italic; }
+  .pais-card.destaque { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+  .destaque-tag { position: absolute; top: 0.8rem; right: 0.9rem; font-size: 0.64rem; font-weight: 800;
+                   color: var(--accent); background: var(--accent-soft); padding: 0.2rem 0.55rem; border-radius: 999px;
+                   text-transform: uppercase; letter-spacing: 0.03em; }
+  .pais-card.em-breve { opacity: 0.55; cursor: default; }
+  .pais-card.em-breve:hover { transform: none; border-color: var(--border); }
+  .em-breve-tag { font-size: 0.64rem; font-weight: 700; color: var(--muted); background: var(--chip-bg);
+                   padding: 0.2rem 0.55rem; border-radius: 999px; align-self: flex-start; }
+
   @media (max-width: 980px) {
     .kpis { grid-template-columns: repeat(2, 1fr); }
     .charts { grid-template-columns: 1fr; }
@@ -274,7 +327,7 @@ _MODAL_HTML = """  <div class="modal-backdrop" id="modalBackdrop">
   </div>"""
 
 _JS_HELPERS = """
-  const SALVOS_KEY = 'radar_salvos_v1';
+  const SALVOS_KEY = 'radar_salvos_v2';
   function getSalvos() { try { return JSON.parse(localStorage.getItem(SALVOS_KEY) || '[]'); } catch (e) { return []; } }
   function setSalvos(arr) { try { localStorage.setItem(SALVOS_KEY, JSON.stringify(arr)); } catch (e) {} }
   function estaSalvo(id) { return getSalvos().includes(id); }
@@ -303,7 +356,7 @@ _JS_ITEM_MODAL = """
     const nivel = d.nivel || 'sem';
     const rotuloNivel = d.nivel || '—';
     const tags = d.areas.map(function(a) { return '<span class="tag" data-area="' + esc(a) + '">' + esc(a) + '</span>'; }).join('');
-    const meta = ['<span>📅 ' + esc(d.data) + '</span>'];
+    const meta = ['<span>' + esc(d.bandeira) + ' ' + esc(d.casaLabel) + '</span>', '<span>📅 ' + esc(d.data) + '</span>'];
     if (d.orgao) meta.push('<span>📍 ' + esc(d.orgao) + '</span>');
     if (d.tramitacaoData) {
       const tit = d.tramitacaoDesc ? (' title="' + esc(d.tramitacaoDesc) + '"') : '';
@@ -311,11 +364,11 @@ _JS_ITEM_MODAL = """
     }
     const salvo = estaSalvo(d.id);
     return '' +
-      '<div class="item" data-id="' + d.id + '">' +
+      '<div class="item" data-id="' + esc(d.id) + '">' +
         '<div class="item-head">' +
           '<div class="item-title"><a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.pl) + '</a></div>' +
           '<div class="item-head-right">' +
-            '<button class="star-btn ' + (salvo ? 'ativo' : '') + '" data-star="' + d.id + '" title="' + (salvo ? 'Remover dos salvos' : 'Salvar') + '">' + (salvo ? '★' : '☆') + '</button>' +
+            '<button class="star-btn ' + (salvo ? 'ativo' : '') + '" data-star="' + esc(d.id) + '" title="' + (salvo ? 'Remover dos salvos' : 'Salvar') + '">' + (salvo ? '★' : '☆') + '</button>' +
             '<span class="badge ' + nivel + '">' + esc(rotuloNivel) + '</span>' +
           '</div>' +
         '</div>' +
@@ -358,7 +411,7 @@ _JS_ITEM_MODAL = """
     modalEl.badge.textContent = d.nivel || '—';
     modalEl.titulo.innerHTML = '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.pl) + '</a>';
 
-    const meta = ['<span>📅 ' + esc(d.data) + '</span>'];
+    const meta = ['<span>' + esc(d.bandeira) + ' ' + esc(d.casaLabel) + '</span>', '<span>📅 ' + esc(d.data) + '</span>'];
     if (d.orgao) meta.push('<span>📍 ' + esc(d.orgao) + '</span>');
     if (d.tramitacaoData) meta.push('<span>🔄 ' + esc(d.tramitacaoDesc || 'última movimentação') + ' — ' + esc(d.tramitacaoData) + '</span>');
     modalEl.meta.innerHTML = meta.join('');
@@ -425,7 +478,7 @@ _JS_ITEM_MODAL = """
     container.querySelectorAll('[data-star]').forEach(function(node) {
       node.addEventListener('click', function(e) {
         e.stopPropagation();
-        const id = Number(node.dataset.star);
+        const id = node.dataset.star;
         const ativo = alternarSalvo(id);
         sincronizarEstrela(id, ativo);
         if (window.__aoMudarSalvos) window.__aoMudarSalvos();
@@ -434,7 +487,7 @@ _JS_ITEM_MODAL = """
     container.querySelectorAll('.item').forEach(function(node) {
       node.addEventListener('click', function(e) {
         if (e.target.closest('a') || e.target.closest('[data-star]')) return;
-        const d = PORID.get(Number(node.dataset.id));
+        const d = PORID.get(node.dataset.id);
         if (d) abrirModal(d);
       });
     });
@@ -442,7 +495,8 @@ _JS_ITEM_MODAL = """
 """
 
 
-def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, script: str, cdn_extra: str = "") -> str:
+def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, script: str,
+            cdn_extra: str = "", versao: str = "0") -> str:
     return f"""<!doctype html>
 <html lang="pt-br">
 <head>
@@ -460,8 +514,8 @@ def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, scr
     <div class="brand">
       <span class="dot"></span>
       <div>
-        <h1>Radar Legislativo</h1>
-        <div class="sub">{subtitulo}</div>
+        <h1 id="marcaTitulo">Radar Legislativo</h1>
+        <div class="sub" id="marcaSub">{subtitulo}</div>
       </div>
     </div>
     <div class="topbar-right">
@@ -477,11 +531,11 @@ def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, scr
 {_MODAL_HTML}
 
   <footer>
-    Dados públicos da API da Câmara dos Deputados · Classificação por IA
-    · <a href="{REPO_URL}" target="_blank" rel="noopener">ver código-fonte</a>
+    Dados públicos das APIs oficiais da Câmara dos Deputados, do Senado Federal e do Congresso dos EUA
+    · Classificação por IA · <a href="{REPO_URL}" target="_blank" rel="noopener">ver código-fonte</a>
   </footer>
 
-{cdn_extra}<script src="dados.js"></script>
+{cdn_extra}<script src="dados.js?v={versao}"></script>
 <script>
 {script}
 </script>
@@ -489,21 +543,120 @@ def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, scr
 </html>"""
 
 
+_CHART_CDN = '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>\n'
+
+
 def gerar_html(linhas: list, caminho: str | Path) -> Path:
+    """Gera as três páginas (hub em `caminho`, pais.html e salvos.html ao
+    lado) a partir das linhas do banco. Retorna o caminho do hub (index.html),
+    que é o que main.py abre no navegador / publish.py copia como entrada
+    principal do site."""
     caminho = Path(caminho)
     caminho.parent.mkdir(parents=True, exist_ok=True)
 
     dados = [_linha_para_dado(l) for l in linhas]
     dados_json = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/")
-    (caminho.parent / "dados.js").write_text(f"window.RADAR_DADOS = {dados_json};\n", encoding="utf-8")
+    paises_json = json.dumps(paises.PAISES, ensure_ascii=False).replace("</", "<\\/")
+    em_breve_json = json.dumps(paises.EM_BREVE, ensure_ascii=False).replace("</", "<\\/")
+    (caminho.parent / "dados.js").write_text(
+        f"window.RADAR_DADOS = {dados_json};\n"
+        f"window.RADAR_PAISES = {paises_json};\n"
+        f"window.RADAR_EM_BREVE = {em_breve_json};\n",
+        encoding="utf-8",
+    )
 
-    gerado_em = datetime.now().strftime("%d/%m/%Y às %H:%M")
+    agora = datetime.now()
+    gerado_em = agora.strftime("%d/%m/%Y às %H:%M")
+    # Cache-busting pro dados.js: sem isso, o navegador pode continuar servindo
+    # uma cópia antiga do arquivo (o HTML muda pouco de um dia pro outro, mas
+    # o dados.js muda sempre) e o painel mostra números desatualizados até um
+    # hard-refresh manual.
+    versao = agora.strftime("%Y%m%d%H%M%S")
 
-    topbar_index = (
+    _gerar_hub_html(caminho, gerado_em, versao)
+    _gerar_pais_html(caminho.parent / "pais.html", gerado_em, versao)
+    _gerar_salvos_html(caminho.parent / "salvos.html", versao)
+    return caminho
+
+
+def _gerar_hub_html(caminho: Path, gerado_em: str, versao: str) -> Path:
+    topbar_hub = (
         f'<span class="live"><span class="pulse"></span> Atualizado {gerado_em}</span>'
         '<a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>'
     )
-    corpo_index = """    <div class="kpis rise" id="kpis"></div>
+    corpo_hub = f"""    <div class="hub-hero rise">
+      <h2>Escolha um país pra acompanhar</h2>
+      <p>Cada país reúne os projetos de lei com potencial impacto em saúde/farma, classificados por IA.
+      Onde há mais de uma casa legislativa, elas aparecem separadas dentro do país.</p>
+    </div>
+
+    <div class="secao-titulo">Em acompanhamento</div>
+    <div class="paises-grid rise" id="paisesGrid" style="animation-delay:.05s"></div>
+
+    <div class="secao-titulo">Em breve · <a href="{REPO_URL}/blob/master/EXPANSAO-INTERNACIONAL.md" target="_blank" rel="noopener">ver pesquisa de viabilidade</a></div>
+    <div class="paises-grid" id="emBreveGrid"></div>"""
+
+    script_hub = f"""(function() {{
+  const DADOS = window.RADAR_DADOS || [];
+  const PAISES = window.RADAR_PAISES || {{}};
+  const EM_BREVE = window.RADAR_EM_BREVE || [];
+{_JS_HELPERS}
+  function statsDoPais(codigo) {{
+    const itens = DADOS.filter(function(d) {{ return d.pais === codigo; }});
+    const porNivel = {{alto: 0, "médio": 0, baixo: 0}};
+    for (const d of itens) if (d.nivel in porNivel) porNivel[d.nivel]++;
+    return {{ total: itens.length, alto: porNivel.alto }};
+  }}
+
+  const linhas = Object.keys(PAISES).map(function(codigo) {{
+    return Object.assign({{ codigo: codigo, info: PAISES[codigo] }}, statsDoPais(codigo));
+  }});
+  linhas.sort(function(a, b) {{ return (b.alto - a.alto) || (b.total - a.total); }});
+
+  function cardHtml(l, destaque) {{
+    const casas = Object.values(l.info.casas || {{}});
+    const stats = l.total > 0
+      ? '<div class="stats">' +
+          '<div><span class="n">' + l.total.toLocaleString('pt-BR') + '</span><span class="l">Total</span></div>' +
+          '<div><span class="n alto">' + l.alto.toLocaleString('pt-BR') + '</span><span class="l">Alto</span></div>' +
+        '</div>'
+      : '<div class="stats"><span class="aguardando">Aguardando primeira coleta…</span></div>';
+    return '' +
+      '<a class="pais-card' + (destaque ? ' destaque' : '') + '" href="pais.html?p=' + encodeURIComponent(l.codigo) + '">' +
+        (destaque ? '<span class="destaque-tag">Mais relevante agora</span>' : '') +
+        '<span class="flag">' + esc(l.info.bandeira) + '</span>' +
+        '<div><h3>' + esc(l.info.nome) + '</h3><div class="casas-lista">' + esc(casas.join(' · ')) + '</div></div>' +
+        stats +
+      '</a>';
+  }}
+
+  document.getElementById('paisesGrid').innerHTML = linhas.map(function(l, i) {{
+    return cardHtml(l, i === 0 && l.total > 0);
+  }}).join('');
+
+  document.getElementById('emBreveGrid').innerHTML = EM_BREVE.map(function(p) {{
+    return '<div class="pais-card em-breve"><span class="em-breve-tag">Em breve</span>' +
+      '<span class="flag">' + esc(p.bandeira) + '</span><div><h3>' + esc(p.nome) + '</h3></div></div>';
+  }}).join('');
+
+  atualizarContadorSalvos();
+}})();"""
+
+    doc_hub = _pagina(
+        "Radar Legislativo — Saúde/Farma", "Escolha um país",
+        topbar_hub, corpo_hub, script_hub, versao=versao,
+    )
+    caminho.write_text(doc_hub, encoding="utf-8")
+    return caminho
+
+
+def _gerar_pais_html(caminho: Path, gerado_em: str, versao: str) -> Path:
+    topbar_pais = (
+        f'<span class="live"><span class="pulse"></span> Atualizado {gerado_em}</span>'
+        '<a href="index.html">← todos os países</a>'
+        '<a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>'
+    )
+    corpo_pais = """    <div class="kpis rise" id="kpis"></div>
 
     <div class="charts rise" style="animation-delay:.05s">
       <div class="panel">
@@ -525,6 +678,7 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="busca" placeholder="Buscar por texto, ementa, área, autor...">
       </div>
+      <span id="fCasaWrap" hidden><div class="segmented" id="fCasa" data-value="todos"></div></span>
       <div class="segmented" id="fNivel" data-value="todos">
         <button data-v="todos" class="active">Todos</button>
         <button data-v="alto">Alto</button>
@@ -546,11 +700,18 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     <div id="corpo"></div>
     <div class="rodape-lista" id="rodape"></div>"""
 
-    script_index = f"""(function() {{
-  const DADOS = window.RADAR_DADOS || [];
+    script_pais = f"""(function() {{
+  const params = new URLSearchParams(location.search);
+  const PAIS = (params.get('p') || 'BR').toUpperCase();
+  const PAIS_INFO = (window.RADAR_PAISES || {{}})[PAIS] || {{ nome: PAIS, bandeira: '', casas: {{}} }};
+  const DADOS = (window.RADAR_DADOS || []).filter(function(d) {{ return d.pais === PAIS; }});
   const RANK = {{alto: 0, "médio": 1, baixo: 2}};
   const PAGE_SIZE = 24;
   const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  document.title = (PAIS_INFO.bandeira ? PAIS_INFO.bandeira + ' ' : '') + PAIS_INFO.nome + ' — Radar Legislativo';
+  document.getElementById('marcaTitulo').textContent = (PAIS_INFO.bandeira ? PAIS_INFO.bandeira + ' ' : '') + PAIS_INFO.nome;
+  document.getElementById('marcaSub').textContent = 'Saúde & Farma no Congresso';
 
   const css = getComputedStyle(document.documentElement);
   const cor = (v) => css.getPropertyValue(v).trim();
@@ -558,6 +719,8 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
 
   const el = {{
     busca: document.getElementById('busca'),
+    fCasaWrap: document.getElementById('fCasaWrap'),
+    fCasa: document.getElementById('fCasa'),
     fNivel: document.getElementById('fNivel'),
     fArea: document.getElementById('fArea'),
     fOrgao: document.getElementById('fOrgao'),
@@ -576,6 +739,13 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
 {_JS_ITEM_MODAL}
   window.__filtrarPorArea = function(area) {{ el.fArea.value = area; render(); }};
   window.__aoMudarSalvos = atualizarContadorSalvos;
+
+  const casasEntries = Object.entries(PAIS_INFO.casas || {{}});
+  if (casasEntries.length > 1) {{
+    el.fCasaWrap.hidden = false;
+    el.fCasa.innerHTML = '<button data-v="todos" class="active">Todas as casas</button>' +
+      casasEntries.map(function(e) {{ return '<button data-v="' + esc(e[0]) + '">' + esc(e[1]) + '</button>'; }}).join('');
+  }}
 
   function preencherSelect(select, valores) {{
     const opts = Array.from(new Set(valores)).filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -602,12 +772,14 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
 
   function aplicarFiltros() {{
     const busca = el.busca.value.trim().toLowerCase();
+    const casa = segValor(el.fCasa);
     const nivel = segValor(el.fNivel);
     const area = el.fArea.value;
     const orgao = el.fOrgao.value;
     const situacao = el.fSituacao.value;
 
     let itens = DADOS.filter(d => {{
+      if (casa !== 'todos' && d.casa !== casa) return false;
       if (nivel !== 'todos' && d.nivel !== nivel) return false;
       if (area !== 'todos' && !d.areas.includes(area)) return false;
       if (orgao !== 'todos' && d.orgao !== orgao) return false;
@@ -742,7 +914,7 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
     const visiveis = itens.slice(0, paginaAtual * PAGE_SIZE);
     el.corpo.innerHTML = visiveis.length
       ? visiveis.map(itemHtml).join('')
-      : '<div class="vazio">Nenhum PL encontrado com esses filtros.</div>';
+      : '<div class="vazio">Nenhum PL encontrado com esses filtros.<br>Se a base pra ' + esc(PAIS_INFO.nome) + ' ainda está vazia, é porque a coleta dessa fonte é recente — volte em breve.</div>';
     ligarCliquesGrid(el.corpo);
 
     el.rodape.innerHTML = visiveis.length < itens.length
@@ -758,6 +930,8 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
   el.fOrdem.addEventListener('change', render);
   el.limpar.addEventListener('click', () => {{
     el.busca.value = '';
+    el.fCasa.dataset.value = 'todos';
+    el.fCasa.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
     el.fNivel.dataset.value = 'todos';
     el.fNivel.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
     el.fArea.value = 'todos'; el.fOrgao.value = 'todos'; el.fSituacao.value = 'todos'; el.fOrdem.value = 'data_desc';
@@ -768,19 +942,17 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
   render();
 }})();"""
 
-    doc_index = _pagina(
-        "Radar Legislativo — Saúde/Farma", "Saúde &amp; Farma no Congresso Nacional",
-        topbar_index, corpo_index, script_index,
-        cdn_extra='<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>\n',
+    doc_pais = _pagina(
+        "Radar Legislativo", "Saúde &amp; Farma",
+        topbar_pais, corpo_pais, script_pais,
+        cdn_extra=_CHART_CDN, versao=versao,
     )
-    caminho.write_text(doc_index, encoding="utf-8")
-
-    _gerar_salvos_html(caminho.parent / "salvos.html")
+    caminho.write_text(doc_pais, encoding="utf-8")
     return caminho
 
 
-def _gerar_salvos_html(caminho: Path) -> Path:
-    topbar_salvos = f'<a href="index.html">← lista completa</a>'
+def _gerar_salvos_html(caminho: Path, versao: str = "0") -> Path:
+    topbar_salvos = '<a href="index.html">← página inicial</a>'
     corpo_salvos = """    <div class="toolbar rise">
       <div class="search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -835,15 +1007,15 @@ def _gerar_salvos_html(caminho: Path) -> Path:
     el.contagem.innerHTML = itens.length ? `<b>${{itens.length}}</b> PL(s) salvo(s)` : '';
     el.corpo.innerHTML = itens.length
       ? itens.map(itemHtml).join('')
-      : '<div class="vazio">Você ainda não salvou nenhum PL.<br>Volte à <a href="index.html">lista completa</a> e clique na estrela ☆ dos que quiser guardar aqui.</div>';
+      : '<div class="vazio">Você ainda não salvou nenhum PL.<br>Volte à <a href="index.html">página inicial</a>, escolha um país e clique na estrela ☆ dos que quiser guardar aqui.</div>';
     ligarCliquesGrid(el.corpo);
   }}
 
   function exportarCSV() {{
     const itens = aplicarFiltros();
-    const cabecalho = ['PL', 'Data', 'Impacto', 'Áreas', 'Órgão', 'Situação', 'Resumo', 'Link'];
+    const cabecalho = ['País', 'Casa', 'PL', 'Data', 'Impacto', 'Áreas', 'Órgão', 'Situação', 'Resumo', 'Link'];
     const linhas = [cabecalho].concat(itens.map(d => [
-      d.pl, d.data, d.nivel || '', d.areas.join('; '), d.orgao || '', d.tramitacaoDesc || '', d.resumo, d.url,
+      d.paisNome, d.casaLabel, d.pl, d.data, d.nivel || '', d.areas.join('; '), d.orgao || '', d.tramitacaoDesc || '', d.resumo, d.url,
     ]));
     const csv = linhas.map(l => l.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\\r\\n');
     const blob = new Blob(['\\ufeff' + csv], {{ type: 'text/csv;charset=utf-8' }});
@@ -871,7 +1043,7 @@ def _gerar_salvos_html(caminho: Path) -> Path:
 
     doc_salvos = _pagina(
         "PLs Salvos — Radar Legislativo", "Seus PLs salvos",
-        topbar_salvos, corpo_salvos, script_salvos,
+        topbar_salvos, corpo_salvos, script_salvos, versao=versao,
     )
     caminho.write_text(doc_salvos, encoding="utf-8")
     return caminho

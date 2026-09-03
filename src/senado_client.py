@@ -1,46 +1,44 @@
 """
-Cliente para a API de Dados Abertos do Senado Federal — INÍCIO DE INTEGRAÇÃO,
-AINDA NÃO USADO PELO PIPELINE PRINCIPAL (main.py só usa a Câmara por enquanto).
+Cliente para a API de Dados Abertos do Senado Federal.
 
 Documentação: https://legis.senado.leg.br/dadosabertos/docs/index.html
 
 O endpoint principal de matérias (/materia/atualizadas) está sendo
-descontinuado pelo próprio Senado (desativação completa prevista, segundo os
-metadados da própria API, pra fev/2026) em favor de um novo endpoint mais
-limpo, /processo, que é o que este módulo já usa.
+descontinuado pelo próprio Senado em favor de um endpoint mais novo e mais
+limpo, /processo, que é o que este módulo usa — confirmado funcionando via
+teste direto em 03/09/2026.
 
-O que falta pra isso virar uma segunda fonte de verdade, ativa igual à
-Câmara (ver README, seção "Preenchendo o histórico"):
+Ao contrário da Câmara (onde a listagem só traz um resumo e é preciso um
+segundo request por proposição pra pegar ementa/tramitação/autoria), o
+/processo do Senado já devolve tudo que precisamos num único request por
+período — então não existe (nem é necessário) um get_detalhe() aqui.
 
-1. Confirmar como filtrar por tema/assunto (ex: Saúde) nesse novo endpoint —
-   testei um parâmetro `assunto=` na consulta e ele não pareceu filtrar de
-   verdade (a resposta trouxe matérias sem relação com o termo buscado).
-   Pode ser que o filtro correto seja por código de uma tabela de referência
-   (como o `codTema` da Câmara) em vez de texto livre — precisa investigar a
-   documentação oficial ou testar outros parâmetros.
-2. Mapear os campos de tramitação/situação (`situacaoAtual`,
-   `dataSituacaoAtual`) pro mesmo formato usado em storage.py
-   (ultima_tramitacao_data/descricao, orgao_atual) — os nomes já são bem
-   parecidos, deve ser um mapeamento direto.
-3. Decidir como tratar matérias que tramitam nas duas casas (Câmara E
-   Senado) pra não duplicar o mesmo PL no banco com dois registros
-   diferentes — provavelmente por número de lei "oficial" ou por texto do
-   `identificacao` (ex: "PL 5231/2026") batendo com o que já vem da Câmara.
-4. Extrair texto do inteiro teor: o campo `urlDocumento` aponta pro PDF, mas
-   o formato do link é diferente do usado na Câmara — o código de
-   src/pdf_extract.py deve funcionar do mesmo jeito (é PDF puro), só precisa
-   testar.
-5. Adaptar heuristic_classify.py/classify.py: já são genéricos o bastante
-   (recebem só ementa + texto), não deveriam precisar de mudança nenhuma.
+Mapeamento de campos usado por listar_novas():
+  identificacao      -> "PL 2/2026" etc. — dividido em sigla_tipo/numero/ano
+  ementa             -> ementa
+  dataApresentacao   -> data_apresentacao
+  autoria            -> autores (já vem como texto único, pode ter vários nomes)
+  id (= codigoMateria) -> id_externo
+  situacaoAtual      -> ultima_tramitacao_descricao
+  dataSituacaoAtual  -> ultima_tramitacao_data
+  enteIdentificador  -> orgao_atual (ex: "PLEN", "CEDP" — órgão/instância atual)
+  urlDocumento       -> url_inteiro_teor (PDF puro, confirmado por Content-Type)
 
-O que já funciona, testado manualmente: buscar matérias apresentadas num
-período (parâmetros de data) — ver `listar_novas_materias` abaixo. O
-parâmetro `tipo` foi testado com `tipo=PL` e a resposta trouxe também
-Requerimentos (REQ), então ou o filtro não funciona como o nome sugere, ou o
-valor certo pra "Projeto de Lei" nesse endpoint não é literalmente "PL" —
-precisa investigar a tabela de referência de tipos antes de confiar nesse
-filtro. Por ora, `listar_novas_materias` filtra os tipos localmente, em
-Python, depois de buscar (mais lento, mas correto).
+A ficha pública de cada matéria segue o padrão
+https://www25.senado.leg.br/web/atividade/materias/-/materia/{codigoMateria}
+(confirmado por HTTP 200 num teste direto) — usado como url_origem.
+
+Limitação conhecida: o parâmetro `assunto=` da API não filtrou corretamente
+num teste manual (trouxe matérias sem relação com o termo buscado), então
+não há filtro de tema no lado do servidor — igual à Câmara, a seleção de
+relevância fica por conta da camada de heurística/IA em cima do texto
+completo, não de um filtro de tema na consulta.
+
+Limitação conhecida: matérias que também tramitam na Câmara (ou vice-versa)
+não são deduplicadas entre as duas fontes — aparecem como registros
+separados, um por casa (`casa='senado'` aqui, `casa='camara'` na Câmara).
+Isso é intencional: o usuário pediu pra manter câmara e senado separados na
+interface, então duplicar não é um bug a corrigir aqui.
 """
 from __future__ import annotations
 
@@ -50,7 +48,10 @@ from typing import Any
 import requests
 
 BASE_URL = "https://legis.senado.leg.br/dadosabertos"
+_URL_FICHA = "https://www25.senado.leg.br/web/atividade/materias/-/materia/{id}"
 _TIMEOUT = 30
+
+_TIPOS_PADRAO = ["PL", "PLP", "PLN", "PEC"]
 
 
 def _get(path: str, params: dict | None = None) -> Any:
@@ -60,20 +61,35 @@ def _get(path: str, params: dict | None = None) -> Any:
     return resp.json()
 
 
-def listar_novas_materias(dias: int, siglas_tipo: list[str] | None = None) -> list[dict]:
-    """
-    Lista matérias apresentadas nos últimos `dias` dias. Testado e
-    funcionando em 03/09/2026 (retornou matérias reais, com ementa,
-    situação atual e link do documento).
+def _parse_identificacao(identificacao: str) -> tuple[str, str, int | None]:
+    """'PL 2/2026' -> ('PL', '2', 2026). Tolera formatos inesperados sem levantar erro."""
+    partes = str(identificacao or "").split(" ", 1)
+    sigla = partes[0] if partes else ""
+    numero, ano = "", None
+    if len(partes) > 1 and "/" in partes[1]:
+        numero, _, ano_str = partes[1].partition("/")
+        try:
+            ano = int(ano_str)
+        except ValueError:
+            ano = None
+    return sigla, numero, ano
 
-    siglas_tipo: ex. ["PL", "PLP"]. O filtro é feito localmente (client-side)
-    comparando com o início do campo `identificacao` (ex: "PL 5231/2026"),
-    já que o parâmetro `tipo` da própria API não filtrou corretamente num
-    teste manual (ver docstring do módulo). Se None, traz todos os tipos.
 
-    Ainda NÃO filtra por tema (ver item 1 do docstring do módulo) — traz
-    todas as matérias do período, sem recorte de saúde/farma.
+def listar_novas(dias: int, siglas_tipo: list[str] | None = None) -> list[dict]:
     """
+    Lista matérias do Senado Federal apresentadas nos últimos `dias` dias, já
+    no formato de registro usado por main.py/storage.py (pronto pra
+    classificar e salvar — sem precisar de uma segunda chamada de detalhe).
+
+    siglas_tipo: ex. ["PL", "PLP"]. Filtrado localmente (client-side)
+    comparando com o início de `identificacao`, porque o parâmetro `tipo` da
+    API não filtrou corretamente num teste manual. Usa _TIPOS_PADRAO se None.
+    Só entram matérias de autoria do próprio Senado (casaIdentificadora=="SF")
+    — matérias de "CN" (Congresso Nacional, ex: Medidas Provisórias, que
+    tramitam nas duas casas em sessão conjunta) ficam de fora por ora, pra
+    não misturar um terceiro tipo de "casa" na interface.
+    """
+    siglas_tipo = siglas_tipo or _TIPOS_PADRAO
     hoje = dt.date.today()
     inicio = hoje - dt.timedelta(days=dias)
     params = {
@@ -82,6 +98,27 @@ def listar_novas_materias(dias: int, siglas_tipo: list[str] | None = None) -> li
     }
     dados = _get("/processo", params)
     materias = dados if isinstance(dados, list) else []
-    if siglas_tipo:
-        materias = [m for m in materias if str(m.get("identificacao", "")).split(" ")[0] in siglas_tipo]
-    return materias
+
+    registros = []
+    for m in materias:
+        if m.get("casaIdentificadora") != "SF":
+            continue
+        sigla, numero, ano = _parse_identificacao(m.get("identificacao"))
+        if sigla not in siglas_tipo:
+            continue
+        id_externo = m.get("id") or m.get("codigoMateria")
+        registros.append({
+            "id_externo": str(id_externo),
+            "sigla_tipo": sigla,
+            "numero": numero,
+            "ano": ano,
+            "ementa": m.get("ementa") or "",
+            "data_apresentacao": m.get("dataApresentacao"),
+            "autores": m.get("autoria") or "",
+            "url_origem": _URL_FICHA.format(id=id_externo),
+            "url_inteiro_teor": m.get("urlDocumento"),
+            "ultima_tramitacao_data": m.get("dataSituacaoAtual"),
+            "ultima_tramitacao_descricao": m.get("situacaoAtual"),
+            "orgao_atual": m.get("enteIdentificador"),
+        })
+    return registros
