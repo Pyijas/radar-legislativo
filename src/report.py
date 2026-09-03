@@ -442,7 +442,7 @@ _JS_ITEM_MODAL = """
 """
 
 
-def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, script: str) -> str:
+def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, script: str, cdn_extra: str = "") -> str:
     return f"""<!doctype html>
 <html lang="pt-br">
 <head>
@@ -481,7 +481,7 @@ def _pagina(titulo: str, subtitulo: str, topbar_extra: str, corpo_html: str, scr
     · <a href="{REPO_URL}" target="_blank" rel="noopener">ver código-fonte</a>
   </footer>
 
-<script src="dados.js"></script>
+{cdn_extra}<script src="dados.js"></script>
 <script>
 {script}
 </script>
@@ -770,8 +770,8 @@ def gerar_html(linhas: list, caminho: str | Path) -> Path:
 
     doc_index = _pagina(
         "Radar Legislativo — Saúde/Farma", "Saúde &amp; Farma no Congresso Nacional",
-        topbar_index, corpo_index,
-        '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>\n' + script_index,
+        topbar_index, corpo_index, script_index,
+        cdn_extra='<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>\n',
     )
     caminho.write_text(doc_index, encoding="utf-8")
 
