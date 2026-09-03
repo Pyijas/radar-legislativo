@@ -111,12 +111,30 @@ Pra rodar a IA em cima de tudo isso depois, os preços acima dão uma estimativa
 de **~$2 a $13** pro ano inteiro (1.055 PLs), dependendo do provedor — bem
 barato mesmo de uma vez só.
 
+## Painel e "Meus salvos"
+
+O relatório publicado tem duas páginas, geradas juntas por `src/report.py` e
+publicadas juntas por `src/publish.py`:
+
+- **`index.html`** — todos os PLs, com busca, filtros (nível, área, órgão
+  atual, situação) e ordenação. Cada card tem uma estrela (☆/★) pra marcar
+  como salvo — clicável sem abrir o card.
+- **`salvos.html`** — só os PLs marcados, com os mesmos busca/ordenação, mais
+  exportação pra CSV e "Limpar todos". Existe um link entre as duas páginas.
+
+O "salvo" fica gravado no `localStorage` do navegador (chave
+`radar_salvos_v1`), então é por pessoa/navegador, não por conta — não passa
+pelo servidor nem pelo banco.
+
 ## Limitações atuais / próximos passos
 
 - **Só cobre a Câmara dos Deputados.** O Senado Federal tem uma API de dados
   abertos equivalente ([legis.senado.leg.br/dadosabertos](https://legis.senado.leg.br/dadosabertos))
-  mas com estrutura diferente — ainda não implementada aqui. Boa parte das
-  proposições relevantes também tramita ou se origina lá.
+  mas com estrutura diferente. Já existe um início de cliente testado em
+  [`src/senado_client.py`](src/senado_client.py) (não integrado ao `main.py`
+  ainda) — ver [EXPANSAO-INTERNACIONAL.md](EXPANSAO-INTERNACIONAL.md) pro
+  que falta pra virar uma segunda fonte ativa, e pra opções de replicar esse
+  projeto em outros países (EUA, Chile, Argentina, Colômbia, Guatemala).
 - **Filtro por tema depende da classificação da própria Câmara**, que é ampla.
   É por isso que a heurística/IA reavaliam e podem marcar `relevante=false`
   mesmo dentro do tema "Saúde" — mas proposições que a Câmara não rotula como
