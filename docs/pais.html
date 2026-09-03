@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Radar Legislativo — Saúde/Farma</title>
+<title>Radar Legislativo</title>
 <meta name="description" content="Monitoramento automático de projetos de lei federais com impacto no setor de saúde e farmacêutico, classificados por IA.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -225,27 +225,59 @@
       <span class="dot"></span>
       <div>
         <h1 id="marcaTitulo">Radar Legislativo</h1>
-        <div class="sub" id="marcaSub">Escolha um país</div>
+        <div class="sub" id="marcaSub">Saúde &amp; Farma</div>
       </div>
     </div>
     <div class="topbar-right">
-      <span class="live"><span class="pulse"></span> Atualizado 03/09/2026 às 20:28</span><a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>
+      <span class="live"><span class="pulse"></span> Atualizado 03/09/2026 às 20:28</span><a href="index.html">← todos os países</a><a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>
       <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg> código-fonte</a>
     </div>
   </div>
 
   <div class="container">
-    <div class="hub-hero rise">
-      <h2>Escolha um país pra acompanhar</h2>
-      <p>Cada país reúne os projetos de lei com potencial impacto em saúde/farma, classificados por IA.
-      Onde há mais de uma casa legislativa, elas aparecem separadas dentro do país.</p>
+    <div class="kpis rise" id="kpis"></div>
+
+    <div class="charts rise" style="animation-delay:.05s">
+      <div class="panel">
+        <h2>Impacto</h2>
+        <div class="chart-wrap"><canvas id="chartImpacto"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Áreas mais frequentes</h2>
+        <div class="chart-wrap"><canvas id="chartAreas"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Novos PLs por mês</h2>
+        <div class="chart-wrap"><canvas id="chartMeses"></canvas></div>
+      </div>
     </div>
 
-    <div class="secao-titulo">Em acompanhamento</div>
-    <div class="paises-grid rise" id="paisesGrid" style="animation-delay:.05s"></div>
+    <div class="toolbar rise" style="animation-delay:.1s">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="busca" placeholder="Buscar por texto, ementa, área, autor...">
+      </div>
+      <span id="fCasaWrap" hidden><div class="segmented" id="fCasa" data-value="todos"></div></span>
+      <div class="segmented" id="fNivel" data-value="todos">
+        <button data-v="todos" class="active">Todos</button>
+        <button data-v="alto">Alto</button>
+        <button data-v="médio">Médio</button>
+        <button data-v="baixo">Baixo</button>
+      </div>
+      <select class="pill" id="fArea"><option value="todos">Área: todas</option></select>
+      <select class="pill" id="fOrgao"><option value="todos">Órgão: todos</option></select>
+      <select class="pill" id="fSituacao"><option value="todos">Situação: todas</option></select>
+      <select class="pill" id="fOrdem">
+        <option value="data_desc">Mais recentes</option>
+        <option value="data_asc">Mais antigos</option>
+        <option value="impacto">Maior impacto</option>
+      </select>
+      <button class="clear-btn" id="limpar">Limpar</button>
+    </div>
 
-    <div class="secao-titulo">Em breve · <a href="https://github.com/Pyijas/radar-legislativo/blob/master/EXPANSAO-INTERNACIONAL.md" target="_blank" rel="noopener">ver pesquisa de viabilidade</a></div>
-    <div class="paises-grid" id="emBreveGrid"></div>
+    <div class="contagem" id="contagem"></div>
+    <div id="corpo"></div>
+    <div class="rodape-lista" id="rodape"></div>
   </div>
 
   <div class="modal-backdrop" id="modalBackdrop">
@@ -285,12 +317,44 @@
     · Classificação por IA · <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener">ver código-fonte</a>
   </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="dados.js"></script>
 <script>
 (function() {
-  const DADOS = window.RADAR_DADOS || [];
-  const PAISES = window.RADAR_PAISES || {};
-  const EM_BREVE = window.RADAR_EM_BREVE || [];
+  const params = new URLSearchParams(location.search);
+  const PAIS = (params.get('p') || 'BR').toUpperCase();
+  const PAIS_INFO = (window.RADAR_PAISES || {})[PAIS] || { nome: PAIS, bandeira: '', casas: {} };
+  const DADOS = (window.RADAR_DADOS || []).filter(function(d) { return d.pais === PAIS; });
+  const RANK = {alto: 0, "médio": 1, baixo: 2};
+  const PAGE_SIZE = 24;
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  document.title = (PAIS_INFO.bandeira ? PAIS_INFO.bandeira + ' ' : '') + PAIS_INFO.nome + ' — Radar Legislativo';
+  document.getElementById('marcaTitulo').textContent = (PAIS_INFO.bandeira ? PAIS_INFO.bandeira + ' ' : '') + PAIS_INFO.nome;
+  document.getElementById('marcaSub').textContent = 'Saúde & Farma no Congresso';
+
+  const css = getComputedStyle(document.documentElement);
+  const cor = (v) => css.getPropertyValue(v).trim();
+  const COR_NIVEL = {alto: cor('--alto'), "médio": cor('--medio'), baixo: cor('--baixo')};
+
+  const el = {
+    busca: document.getElementById('busca'),
+    fCasaWrap: document.getElementById('fCasaWrap'),
+    fCasa: document.getElementById('fCasa'),
+    fNivel: document.getElementById('fNivel'),
+    fArea: document.getElementById('fArea'),
+    fOrgao: document.getElementById('fOrgao'),
+    fSituacao: document.getElementById('fSituacao'),
+    fOrdem: document.getElementById('fOrdem'),
+    limpar: document.getElementById('limpar'),
+    kpis: document.getElementById('kpis'),
+    contagem: document.getElementById('contagem'),
+    corpo: document.getElementById('corpo'),
+    rodape: document.getElementById('rodape'),
+  };
+
+  let paginaAtual = 1;
+  let kpisRenderizados = false;
 
   const SALVOS_KEY = 'radar_salvos_v2';
   function getSalvos() { try { return JSON.parse(localStorage.getItem(SALVOS_KEY) || '[]'); } catch (e) { return []; } }
@@ -313,45 +377,353 @@
     });
   }
 
-  function statsDoPais(codigo) {
-    const itens = DADOS.filter(function(d) { return d.pais === codigo; });
+
+  const PORID = new Map(DADOS.map(function(d) { return [d.id, d]; }));
+
+  function itemHtml(d) {
+    const nivel = d.nivel || 'sem';
+    const rotuloNivel = d.nivel || '—';
+    const tags = d.areas.map(function(a) { return '<span class="tag" data-area="' + esc(a) + '">' + esc(a) + '</span>'; }).join('');
+    const meta = ['<span>' + esc(d.bandeira) + ' ' + esc(d.casaLabel) + '</span>', '<span>📅 ' + esc(d.data) + '</span>'];
+    if (d.orgao) meta.push('<span>📍 ' + esc(d.orgao) + '</span>');
+    if (d.tramitacaoData) {
+      const tit = d.tramitacaoDesc ? (' title="' + esc(d.tramitacaoDesc) + '"') : '';
+      meta.push('<span' + tit + '>🔄 última mov. ' + esc(d.tramitacaoData) + '</span>');
+    }
+    const salvo = estaSalvo(d.id);
+    return '' +
+      '<div class="item" data-id="' + esc(d.id) + '">' +
+        '<div class="item-head">' +
+          '<div class="item-title"><a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.pl) + '</a></div>' +
+          '<div class="item-head-right">' +
+            '<button class="star-btn ' + (salvo ? 'ativo' : '') + '" data-star="' + esc(d.id) + '" title="' + (salvo ? 'Remover dos salvos' : 'Salvar') + '">' + (salvo ? '★' : '☆') + '</button>' +
+            '<span class="badge ' + nivel + '">' + esc(rotuloNivel) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="item-meta">' + meta.join('') + '</div>' +
+        '<p class="resumo clamp">' + esc(d.resumo) + '</p>' +
+        '<div class="item-foot"><div class="tags">' + tags + '</div></div>' +
+      '</div>';
+  }
+
+  const modalEl = {
+    badge: document.getElementById('modalBadge'),
+    star: document.getElementById('modalStar'),
+    titulo: document.getElementById('modalTitulo'),
+    meta: document.getElementById('modalMeta'),
+    resumo: document.getElementById('modalResumo'),
+    just: document.getElementById('modalJust'),
+    areasWrap: document.getElementById('modalAreasWrap'),
+    areas: document.getElementById('modalAreas'),
+    tiposWrap: document.getElementById('modalTiposWrap'),
+    tipos: document.getElementById('modalTipos'),
+    abrangenciaWrap: document.getElementById('modalAbrangenciaWrap'),
+    abrangencia: document.getElementById('modalAbrangencia'),
+    autoresWrap: document.getElementById('modalAutoresWrap'),
+    autores: document.getElementById('modalAutores'),
+  };
+  const elModalBackdrop = document.getElementById('modalBackdrop');
+  const elModalClose = document.getElementById('modalClose');
+
+  function sincronizarEstrela(id, ativo) {
+    document.querySelectorAll('[data-star="' + id + '"]').forEach(function(node) {
+      node.classList.toggle('ativo', ativo);
+      node.textContent = ativo ? '★' : '☆';
+      node.title = ativo ? 'Remover dos salvos' : 'Salvar';
+    });
+  }
+
+  function abrirModal(d) {
+    const nivel = d.nivel || 'sem';
+    modalEl.badge.className = 'badge ' + nivel;
+    modalEl.badge.textContent = d.nivel || '—';
+    modalEl.titulo.innerHTML = '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.pl) + '</a>';
+
+    const meta = ['<span>' + esc(d.bandeira) + ' ' + esc(d.casaLabel) + '</span>', '<span>📅 ' + esc(d.data) + '</span>'];
+    if (d.orgao) meta.push('<span>📍 ' + esc(d.orgao) + '</span>');
+    if (d.tramitacaoData) meta.push('<span>🔄 ' + esc(d.tramitacaoDesc || 'última movimentação') + ' — ' + esc(d.tramitacaoData) + '</span>');
+    modalEl.meta.innerHTML = meta.join('');
+
+    modalEl.resumo.textContent = d.resumo;
+
+    if (d.justificativa) { modalEl.just.hidden = false; modalEl.just.textContent = '💡 ' + d.justificativa; }
+    else modalEl.just.hidden = true;
+
+    if (d.areas.length) {
+      modalEl.areasWrap.hidden = false;
+      modalEl.areas.innerHTML = d.areas.map(function(a) { return '<span class="tag" data-area="' + esc(a) + '">' + esc(a) + '</span>'; }).join('');
+      modalEl.areas.querySelectorAll('.tag').forEach(function(node) {
+        node.addEventListener('click', function() {
+          fecharModal();
+          if (window.__filtrarPorArea) window.__filtrarPorArea(node.dataset.area);
+        });
+      });
+    } else modalEl.areasWrap.hidden = true;
+
+    if (d.tipos.length) {
+      modalEl.tiposWrap.hidden = false;
+      modalEl.tipos.innerHTML = d.tipos.map(function(t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('');
+    } else modalEl.tiposWrap.hidden = true;
+
+    if (d.abrangencia) { modalEl.abrangenciaWrap.hidden = false; modalEl.abrangencia.textContent = d.abrangencia; }
+    else modalEl.abrangenciaWrap.hidden = true;
+
+    if (d.autores) { modalEl.autoresWrap.hidden = false; modalEl.autores.textContent = d.autores; }
+    else modalEl.autoresWrap.hidden = true;
+
+    const salvo = estaSalvo(d.id);
+    modalEl.star.classList.toggle('ativo', salvo);
+    modalEl.star.textContent = salvo ? '★' : '☆';
+    modalEl.star.title = salvo ? 'Remover dos salvos' : 'Salvar';
+    modalEl.star.onclick = function() {
+      const ativo = alternarSalvo(d.id);
+      modalEl.star.classList.toggle('ativo', ativo);
+      modalEl.star.textContent = ativo ? '★' : '☆';
+      sincronizarEstrela(d.id, ativo);
+      if (window.__aoMudarSalvos) window.__aoMudarSalvos();
+    };
+
+    elModalBackdrop.classList.add('open');
+    document.body.classList.add('modal-open');
+  }
+
+  function fecharModal() {
+    elModalBackdrop.classList.remove('open');
+    document.body.classList.remove('modal-open');
+  }
+
+  elModalClose.addEventListener('click', fecharModal);
+  elModalBackdrop.addEventListener('click', function(e) { if (e.target === elModalBackdrop) fecharModal(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') fecharModal(); });
+
+  function ligarCliquesGrid(container) {
+    container.querySelectorAll('.tag').forEach(function(node) {
+      node.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (window.__filtrarPorArea) window.__filtrarPorArea(node.dataset.area);
+      });
+    });
+    container.querySelectorAll('[data-star]').forEach(function(node) {
+      node.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const id = node.dataset.star;
+        const ativo = alternarSalvo(id);
+        sincronizarEstrela(id, ativo);
+        if (window.__aoMudarSalvos) window.__aoMudarSalvos();
+      });
+    });
+    container.querySelectorAll('.item').forEach(function(node) {
+      node.addEventListener('click', function(e) {
+        if (e.target.closest('a') || e.target.closest('[data-star]')) return;
+        const d = PORID.get(node.dataset.id);
+        if (d) abrirModal(d);
+      });
+    });
+  }
+
+  window.__filtrarPorArea = function(area) { el.fArea.value = area; render(); };
+  window.__aoMudarSalvos = atualizarContadorSalvos;
+
+  const casasEntries = Object.entries(PAIS_INFO.casas || {});
+  if (casasEntries.length > 1) {
+    el.fCasaWrap.hidden = false;
+    el.fCasa.innerHTML = '<button data-v="todos" class="active">Todas as casas</button>' +
+      casasEntries.map(function(e) { return '<button data-v="' + esc(e[0]) + '">' + esc(e[1]) + '</button>'; }).join('');
+  }
+
+  function preencherSelect(select, valores) {
+    const opts = Array.from(new Set(valores)).filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    for (const v of opts) {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      select.appendChild(opt);
+    }
+  }
+  preencherSelect(el.fArea, DADOS.flatMap(d => d.areas));
+  preencherSelect(el.fOrgao, DADOS.map(d => d.orgao));
+  preencherSelect(el.fSituacao, DADOS.map(d => d.tramitacaoDesc));
+
+  function segValor(container) { return container.dataset.value; }
+  document.querySelectorAll('.segmented').forEach(seg => {
+    seg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      seg.dataset.value = btn.dataset.v;
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  function aplicarFiltros() {
+    const busca = el.busca.value.trim().toLowerCase();
+    const casa = segValor(el.fCasa);
+    const nivel = segValor(el.fNivel);
+    const area = el.fArea.value;
+    const orgao = el.fOrgao.value;
+    const situacao = el.fSituacao.value;
+
+    let itens = DADOS.filter(d => {
+      if (casa !== 'todos' && d.casa !== casa) return false;
+      if (nivel !== 'todos' && d.nivel !== nivel) return false;
+      if (area !== 'todos' && !d.areas.includes(area)) return false;
+      if (orgao !== 'todos' && d.orgao !== orgao) return false;
+      if (situacao !== 'todos' && d.tramitacaoDesc !== situacao) return false;
+      if (busca) {
+        const alvo = (d.pl + ' ' + d.resumo + ' ' + d.areas.join(' ') + ' ' + d.autores + ' ' + d.orgao).toLowerCase();
+        if (!alvo.includes(busca)) return false;
+      }
+      return true;
+    });
+
+    const ordem = el.fOrdem.value;
+    if (ordem === 'data_asc') itens.sort((a, b) => a.data.localeCompare(b.data));
+    else if (ordem === 'impacto') itens.sort((a, b) => (RANK[a.nivel] ?? 3) - (RANK[b.nivel] ?? 3));
+    else itens.sort((a, b) => b.data.localeCompare(a.data));
+
+    return itens;
+  }
+
+  function animarNumero(elemento, alvo) {
+    const inicio = performance.now();
+    const duracao = 700;
+    function passo(agora) {
+      const t = Math.min(1, (agora - inicio) / duracao);
+      const ease = 1 - Math.pow(1 - t, 3);
+      elemento.textContent = Math.round(alvo * ease).toLocaleString('pt-BR');
+      if (t < 1) requestAnimationFrame(passo);
+    }
+    requestAnimationFrame(passo);
+  }
+
+  function renderKpis(itens) {
     const porNivel = {alto: 0, "médio": 0, baixo: 0};
     for (const d of itens) if (d.nivel in porNivel) porNivel[d.nivel]++;
-    return { total: itens.length, alto: porNivel.alto };
+    const cards = [
+      ['', itens.length, 'Total'],
+      ['alto', porNivel.alto, 'Impacto alto'],
+      ['medio', porNivel["médio"], 'Impacto médio'],
+      ['baixo', porNivel.baixo, 'Impacto baixo'],
+    ];
+    if (!kpisRenderizados) {
+      el.kpis.innerHTML = cards.map(([cls, n, l], i) =>
+        `<div class="kpi ${cls}"><div class="n" data-i="${i}">0</div><div class="l">${l}</div></div>`
+      ).join('');
+      kpisRenderizados = true;
+    }
+    cards.forEach(([, n], i) => animarNumero(el.kpis.querySelector(`[data-i="${i}"]`), n));
   }
 
-  const linhas = Object.keys(PAISES).map(function(codigo) {
-    return Object.assign({ codigo: codigo, info: PAISES[codigo] }, statsDoPais(codigo));
+  let chImpacto, chAreas, chMeses;
+  function renderCharts(itens) {
+    const porNivel = {alto: 0, "médio": 0, baixo: 0};
+    for (const d of itens) if (d.nivel in porNivel) porNivel[d.nivel]++;
+
+    const contagemAreas = new Map();
+    for (const d of itens) for (const a of d.areas) contagemAreas.set(a, (contagemAreas.get(a) || 0) + 1);
+    const topAreas = Array.from(contagemAreas.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).reverse();
+
+    const porMes = new Array(12).fill(0);
+    for (const d of itens) {
+      const m = parseInt(d.data.slice(5, 7), 10) - 1;
+      if (m >= 0 && m < 12) porMes[m]++;
+    }
+
+    const textoCor = cor('--muted');
+    const gridCor = cor('--border');
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = textoCor;
+
+    if (chImpacto) chImpacto.destroy();
+    chImpacto = new Chart(document.getElementById('chartImpacto'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Alto', 'Médio', 'Baixo'],
+        datasets: [{ data: [porNivel.alto, porNivel["médio"], porNivel.baixo],
+                      backgroundColor: [COR_NIVEL.alto, COR_NIVEL["médio"], COR_NIVEL.baixo],
+                      borderWidth: 0, hoverOffset: 6 }]
+      },
+      options: {
+        maintainAspectRatio: false, cutout: '68%',
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, boxHeight: 8, padding: 12, usePointStyle: true, pointStyle: 'circle' } } }
+      }
+    });
+
+    if (chAreas) chAreas.destroy();
+    chAreas = new Chart(document.getElementById('chartAreas'), {
+      type: 'bar',
+      data: {
+        labels: topAreas.map(a => a[0]),
+        datasets: [{ data: topAreas.map(a => a[1]), backgroundColor: cor('--accent'), borderRadius: 5, barThickness: 12 }]
+      },
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: gridCor }, ticks: { precision: 0 } },
+          y: { grid: { display: false }, ticks: { font: { size: 10.5 } } }
+        }
+      }
+    });
+
+    if (chMeses) chMeses.destroy();
+    chMeses = new Chart(document.getElementById('chartMeses'), {
+      type: 'bar',
+      data: {
+        labels: MESES,
+        datasets: [{ data: porMes, backgroundColor: cor('--accent'), borderRadius: 5, barThickness: 14 }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: gridCor }, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+
+  function render() {
+    paginaAtual = 1;
+    renderPagina();
+  }
+
+  function renderPagina() {
+    const itens = aplicarFiltros();
+    renderKpis(itens);
+    renderCharts(itens);
+    el.contagem.innerHTML = `<b>${itens.length.toLocaleString('pt-BR')}</b> PL(s) encontrados`;
+
+    const visiveis = itens.slice(0, paginaAtual * PAGE_SIZE);
+    el.corpo.innerHTML = visiveis.length
+      ? visiveis.map(itemHtml).join('')
+      : '<div class="vazio">Nenhum PL encontrado com esses filtros.<br>Se a base pra ' + esc(PAIS_INFO.nome) + ' ainda está vazia, é porque a coleta dessa fonte é recente — volte em breve.</div>';
+    ligarCliquesGrid(el.corpo);
+
+    el.rodape.innerHTML = visiveis.length < itens.length
+      ? `<button id="maisBtn">Mostrar mais (${(itens.length - visiveis.length).toLocaleString('pt-BR')} restantes)</button>` : '';
+    const maisBtn = document.getElementById('maisBtn');
+    if (maisBtn) maisBtn.addEventListener('click', () => { paginaAtual++; renderPagina(); });
+  }
+
+  el.busca.addEventListener('input', render);
+  el.fArea.addEventListener('change', render);
+  el.fOrgao.addEventListener('change', render);
+  el.fSituacao.addEventListener('change', render);
+  el.fOrdem.addEventListener('change', render);
+  el.limpar.addEventListener('click', () => {
+    el.busca.value = '';
+    el.fCasa.dataset.value = 'todos';
+    el.fCasa.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
+    el.fNivel.dataset.value = 'todos';
+    el.fNivel.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'todos'));
+    el.fArea.value = 'todos'; el.fOrgao.value = 'todos'; el.fSituacao.value = 'todos'; el.fOrdem.value = 'data_desc';
+    render();
   });
-  linhas.sort(function(a, b) { return (b.alto - a.alto) || (b.total - a.total); });
-
-  function cardHtml(l, destaque) {
-    const casas = Object.values(l.info.casas || {});
-    const stats = l.total > 0
-      ? '<div class="stats">' +
-          '<div><span class="n">' + l.total.toLocaleString('pt-BR') + '</span><span class="l">Total</span></div>' +
-          '<div><span class="n alto">' + l.alto.toLocaleString('pt-BR') + '</span><span class="l">Alto</span></div>' +
-        '</div>'
-      : '<div class="stats"><span class="aguardando">Aguardando primeira coleta…</span></div>';
-    return '' +
-      '<a class="pais-card' + (destaque ? ' destaque' : '') + '" href="pais.html?p=' + encodeURIComponent(l.codigo) + '">' +
-        (destaque ? '<span class="destaque-tag">Mais relevante agora</span>' : '') +
-        '<span class="flag">' + esc(l.info.bandeira) + '</span>' +
-        '<div><h3>' + esc(l.info.nome) + '</h3><div class="casas-lista">' + esc(casas.join(' · ')) + '</div></div>' +
-        stats +
-      '</a>';
-  }
-
-  document.getElementById('paisesGrid').innerHTML = linhas.map(function(l, i) {
-    return cardHtml(l, i === 0 && l.total > 0);
-  }).join('');
-
-  document.getElementById('emBreveGrid').innerHTML = EM_BREVE.map(function(p) {
-    return '<div class="pais-card em-breve"><span class="em-breve-tag">Em breve</span>' +
-      '<span class="flag">' + esc(p.bandeira) + '</span><div><h3>' + esc(p.nome) + '</h3></div></div>';
-  }).join('');
 
   atualizarContadorSalvos();
+  render();
 })();
 </script>
 </body>
