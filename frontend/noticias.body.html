@@ -1,0 +1,60 @@
+    <div class="hub-hero rise" style="padding-top:0.5rem;">
+      <h2>📡 Monitoramento institucional</h2>
+      <p>Notícias da Anvisa, do Ministério da Saúde e da ANS, a agenda pública do Presidente, e mudanças
+      regulatórias nas agências de medicamentos da América Latina — classificadas pelo mesmo critério de
+      impacto na indústria farmacêutica usado pros PLs.</p>
+    </div>
+
+    <div class="kpis rise" id="kpis" style="animation-delay:.05s"></div>
+
+    <div class="mon-toolbar rise" style="animation-delay:.1s">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="busca" placeholder="Buscar por título, órgão, autoridade...">
+      </div>
+      <div class="segmented" id="fTipo" data-value="todos">
+        <button data-v="todos" class="active">Tudo</button>
+        <button data-v="noticia">Brasil</button>
+        <button data-v="regulatorio">América Latina</button>
+        <button data-v="agenda">Agenda</button>
+      </div>
+      <div class="segmented" id="fNivel" data-value="todos">
+        <button data-v="todos" class="active">Todos</button>
+        <button data-v="alto">Alto</button>
+        <button data-v="médio">Médio</button>
+        <button data-v="baixo">Baixo</button>
+      </div>
+      <select class="pill" id="fFonte">
+        <option value="todos">Fonte: todas</option>
+        <optgroup label="Brasil">
+          <option value="anvisa">Anvisa</option>
+          <option value="saude">Ministério da Saúde</option>
+          <option value="ans">ANS</option>
+          <option value="agenda">Agenda do Presidente</option>
+        </optgroup>
+        <optgroup label="América Latina">
+          <option value="anmat">🇦🇷 ANMAT (Argentina)</option>
+          <option value="digemid">🇵🇪 DIGEMID (Peru)</option>
+          <option value="isp_cl">🇨🇱 ISP (Chile)</option>
+          <option value="minsalud_bo">🇧🇴 AGEMED / Min. Saúde (Bolívia)</option>
+          <option value="msp_uy">🇺🇾 MSP (Uruguai)</option>
+        </optgroup>
+      </select>
+      <button class="clear-btn" id="limpar">Limpar</button>
+    </div>
+
+    <div class="mon-secao-grupo rise" style="animation-delay:.15rem">
+      <h2>📰 Notícias — Brasil <span class="contagem-mini" id="ctgNoticias"></span></h2>
+      <div class="mon-grid" id="gridNoticias"></div>
+    </div>
+    <div class="mon-secao-grupo rise" style="animation-delay:.15rem">
+      <h2>🌎 Mudanças regulatórias — América Latina <span class="contagem-mini" id="ctgRegulatorio"></span></h2>
+      <p class="justificativa" style="margin:-0.5rem 0 0.9rem;">Só o que altera regra do setor (nova norma, registro, preço) —
+      não cobre fiscalização/recall de rotina. Cobertura ainda parcial: México (bloqueio anti-bot no site oficial),
+      Equador (site fora do ar), Colômbia e Paraguai (sites exigem raspagem mais complexa) seguem de fora por ora.</p>
+      <div class="mon-grid" id="gridRegulatorio"></div>
+    </div>
+    <div class="mon-secao-grupo rise" style="animation-delay:.15rem">
+      <h2>🎩 Agenda do Presidente <span class="contagem-mini" id="ctgAgenda"></span></h2>
+      <div class="mon-grid" id="gridAgenda"></div>
+    </div>

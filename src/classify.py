@@ -106,6 +106,48 @@ título/texto em 1-2 frases; se for um compromisso de agenda, "resumo" deve \
 explicar por que o compromisso é ou não estrategicamente relevante pro setor.
 """
 
+_SYSTEM_PROMPT_MUDANCA_REGULATORIA = """\
+Você é um analista de inteligência regulatória. Você recebe notícias publicadas \
+pelas agências reguladoras de medicamentos da América Latina (ANMAT/Argentina, \
+DIGEMID/Peru, ISP/Chile, Ministério da Saúde/AGEMED da Bolívia, MSP/Uruguai, e \
+eventualmente outras). O texto de entrada está em espanhol — responda SEMPRE em \
+português, para manter o painel consistente com o resto do sistema.
+
+ESCOPO — diferente do monitoramento do Brasil (que também cobre agenda/reuniões \
+estratégicas), aqui o pedido é mais estrito: marque relevante=true SÓ quando a \
+notícia representa uma MUDANÇA REGULATÓRIA OU NORMATIVA DE VERDADE — algo que \
+altera, cria ou revoga uma regra que rege o setor farmacêutico naquele país. \
+Exemplos do que CONTA:
+
+- Nova resolução/regulamento/decreto sobre registro sanitário de medicamentos, \
+  biológicos ou vacinas (requisitos, prazos, documentação).
+- Mudança nas regras de fixação, controle ou reajuste de preço de medicamentos.
+- Nova exigência (ou dispensa) de licença, certificação (ex: Boas Práticas de \
+  Fabricação) ou inspeção para fabricar/importar/comercializar medicamentos.
+- Mudança em regra de patente, exclusividade de dados, ou concorrência com \
+  genéricos/biossimilares.
+- Novo mandato (ou remoção de mandato) de cobertura de um medicamento/tratamento \
+  específico por um pagador público ou plano de saúde do país.
+- Acordo internacional de reconhecimento regulatório mútuo que muda o processo de \
+  registro/importação.
+
+O que NÃO CONTA (marque relevante=false), mesmo vindo da agência reguladora e \
+mesmo envolvendo medicamentos — porque é aplicação/fiscalização de regra já \
+existente, não uma mudança de regra: alerta de recolhimento (recall) ou proibição \
+de um produto específico por não cumprir norma já vigente, apreensão/multa/ \
+sanção contra uma empresa específica, inspeção de rotina, feira/campanha \
+informativa ao público, participação em evento/congresso, estatística de \
+produção/importação, e qualquer notícia de saúde genérica sem relação com regra \
+regulatória de medicamentos (hospitais, força de trabalho, campanhas de \
+conscientização, doenças sem produto farmacêutico nomeado).
+
+Na dúvida entre "mudou uma regra" e "aplicaram uma regra que já existia", marque \
+relevante=false — o objetivo aqui é rastrear só o que muda o jogo regulatório, \
+não o noticiário operacional do dia a dia da agência.
+
+"resumo" deve dizer, em 1-2 frases, QUAL regra mudou e o que passa a valer.
+"""
+
 TipoImpacto = Literal[
     "tributário", "regulatório", "trabalhista", "concorrencial",
     "orçamentário/gasto público", "direitos do paciente/consumidor", "outro",
@@ -358,3 +400,16 @@ def classificar_evento_agenda(titulo: str, autoridade: str, local: str | None) -
     if local:
         conteudo += f"LOCAL: {local}\n"
     return _classificar_com_prompt(conteudo, _SYSTEM_PROMPT_MONITORAMENTO)
+
+
+def classificar_mudanca_regulatoria(titulo: str, resumo: str | None) -> dict:
+    """Classifica uma notícia de agência reguladora latino-americana (ANMAT,
+    DIGEMID, ISP, etc — ver main.py) quanto a ser ou não uma MUDANÇA
+    REGULATÓRIA de verdade — critério mais estrito que classificar_noticia(),
+    que também aceita sinal de agenda/estratégia (ver
+    _SYSTEM_PROMPT_MUDANCA_REGULATORIA). Adicionada em 11/09/2026 a pedido do
+    usuário: "é só pra oq alterou na lei"."""
+    conteudo = f"TÍTULO DA NOTÍCIA:\n{titulo}\n"
+    if resumo:
+        conteudo += f"\nRESUMO:\n{resumo}\n"
+    return _classificar_com_prompt(conteudo, _SYSTEM_PROMPT_MUDANCA_REGULATORIA)

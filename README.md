@@ -176,7 +176,8 @@ barato mesmo de uma vez só.
 
 ## Painel, países e "Meus salvos"
 
-O relatório publicado tem três páginas, geradas juntas por `src/report.py` e
+O relatório publicado tem quatro páginas, montadas por `src/report.py` a
+partir dos templates/CSS/JS de `frontend/` (ver "Estrutura" abaixo) e
 publicadas juntas por `src/publish.py`:
 
 - **`index.html`** — hub: um card por país (com total de PLs e destaque pro
@@ -189,12 +190,60 @@ publicadas juntas por `src/publish.py`:
   Quando o país tem mais de uma casa legislativa (Brasil: Câmara/Senado;
   EUA: House/Senate; Chile: Cámara/Senado), aparece também um filtro de
   casa. Cada card tem uma estrela (☆/★) pra marcar como salvo — clicável
-  sem abrir o card.
+  sem abrir o card. Só a página do Brasil mostra o banner de monitoramento
+  institucional (ver abaixo).
+- **`noticias.html`** — monitoramento institucional, em três seções:
+  notícias do Brasil (Anvisa/Ministério da Saúde/ANS), agenda pública do
+  Presidente, e **mudanças regulatórias das agências de medicamentos da
+  América Latina** (ver seção própria abaixo) — ver `main.py`
+  (`_coletar_e_classificar_noticias`/`_coletar_e_classificar_agenda`) e os
+  clientes `src/anvisa_news_client.py`, `src/saude_news_client.py`,
+  `src/ans_news_client.py`, `src/agenda_presidente_client.py`.
 - **`salvos.html`** — só os PLs marcados, de qualquer país/casa, com os
   mesmos busca/ordenação, mais exportação pra CSV e "Limpar todos".
 
 O "salvo" fica gravado no `localStorage` do navegador, então é por
 pessoa/navegador, não por conta — não passa pelo servidor nem pelo banco.
+
+## Monitoramento regulatório — América Latina
+
+Adicionado em 11/09/2026 a pedido do usuário: rastrear mudanças regulatórias
+nas agências de medicamentos de 9 países latino-americanos. Diferente do
+monitoramento do Brasil (que também aceita sinal de agenda/estratégia), o
+critério aqui é mais estrito — só marca `relevante=true` quando a notícia é
+uma **mudança de norma de verdade** (nova resolução, exigência de registro,
+mudança de preço/cobertura), não fiscalização/recall/evento institucional de
+rotina (ver `_SYSTEM_PROMPT_MUDANCA_REGULATORIA` em `src/classify.py` e
+`classificar_mudanca_regulatoria()`). Por isso a maioria das notícias
+coletadas fica com `relevante=false` — é o comportamento esperado, não um
+bug (`--mostrar-todas` mostra tudo, incluindo o que foi descartado).
+
+Pesquisa de viabilidade em 11/09/2026 nos 9 países pedidos — status de cada
+um:
+
+| País | Agência | Status | Fonte usada |
+|---|---|---|---|
+| 🇦🇷 Argentina | ANMAT | ✅ implementado | scraping da página institucional (`src/anmat_client.py`) |
+| 🇵🇪 Peru | DIGEMID | ✅ implementado | feed RSS (`src/digemid_client.py`) |
+| 🇨🇱 Chile | ISP | ✅ implementado | feed RSS (`src/isp_chile_client.py`) |
+| 🇧🇴 Bolívia | AGEMED | ✅ implementado (via feed do Ministério da Saúde — AGEMED não publica feed próprio) | `src/minsalud_bolivia_client.py` |
+| 🇺🇾 Uruguai | MSP (Div. Avaliação Sanitária) | ✅ implementado | scraping da listagem de notícias (`src/msp_uruguay_client.py`) |
+| 🇲🇽 México | COFEPRIS | ❌ bloqueado | o site (gob.mx) tem proteção anti-bot ativa (challenge page) — não implementado, por política não tentamos contornar bloqueio anti-bot |
+| 🇪🇨 Equador | ARCSA | ❌ indisponível | site (controlsanitario.gob.ec) não respondeu (timeout de conexão) na pesquisa — pode estar fora do ar ou bloqueado pra esta rede; vale re-testar |
+| 🇨🇴 Colômbia | INVIMA | ⏳ não implementado | site parece ser uma SPA (conteúdo renderizado via JS), sem API/feed óbvio encontrado — precisa de mais investigação |
+| 🇵🇾 Paraguai | DINAVISA | ⏳ não implementado | página de notícias encontrada não trouxe conteúdo estruturado extraível na pesquisa — precisa de mais investigação |
+
+`src/rss_utils.py` é o helper compartilhado pelos três clientes baseados em
+feed RSS padrão (Peru, Chile, Bolívia). Argentina e Uruguai usam scraping
+por regex da página HTML (mesma técnica de
+`src/agenda_presidente_client.py`), porque não expõem feed/API.
+
+**Gotcha de TLS**: o site do ISP (Chile) manda uma cadeia de certificado
+incompleta (falta o intermediário) — `curl`/navegadores toleram porque
+buscam o intermediário sozinhos, mas o verificador padrão do Python não.
+Resolvido com a lib `truststore` (troca o verificador pelo nativo do SO,
+injetado no topo de `main.py`) — mais correto, não uma flexibilização de
+segurança.
 
 ## Limitações atuais / próximos passos
 
@@ -249,10 +298,32 @@ src/camara_client.py       chamadas à API da Câmara dos Deputados
 src/senado_client.py       chamadas à API do Senado Federal
 src/congress_client.py     chamadas à API do Congresso dos EUA (Congress.gov)
 src/chile_client.py        chamadas ao serviço de tramitação do Congresso do Chile
+src/anvisa_news_client.py  notícias da Anvisa (Plone REST API, sem chave)
+src/saude_news_client.py   notícias do Ministério da Saúde (sitemap de notícias, sem chave)
+src/ans_news_client.py     notícias da ANS (sitemap de notícias, sem chave)
+src/agenda_presidente_client.py  agenda pública do Presidente (gov.br/planalto, sem chave)
+src/rss_utils.py           helper compartilhado pros clientes de agência que usam feed RSS padrão
+src/anmat_client.py        notícias da ANMAT/Argentina (scraping da página institucional, sem chave)
+src/digemid_client.py      notícias da DIGEMID/Peru (RSS, sem chave)
+src/isp_chile_client.py    notícias do ISP/Chile (RSS, sem chave)
+src/minsalud_bolivia_client.py  notícias do Ministério da Saúde/AGEMED da Bolívia (RSS, sem chave)
+src/msp_uruguay_client.py  notícias do MSP/Uruguai (scraping da página de notícias, sem chave)
 src/pdf_extract.py         download e extração de texto do inteiro teor
 src/heuristic_classify.py  classificação por palavras-chave, PT/EN/ES (sem IA, sempre roda)
-src/classify.py            prompt e chamadas às APIs da Anthropic / Gemini
-src/storage.py             persistência em SQLite (multi-país/multi-casa)
-src/report.py              geração do painel HTML (hub + dashboard por país + salvos)
-src/publish.py             publicação automática no GitHub Pages
+src/classify.py            prompt e chamadas às APIs da Anthropic / Gemini / Ollama
+src/storage.py             persistência em SQLite (multi-país/multi-casa + notícias/agenda)
+src/report.py              gera dados.js e monta o HTML das 4 páginas a partir de frontend/
+src/publish.py             publicação automática no GitHub Pages (copia pra docs/ + git push)
+frontend/                  HTML/CSS/JS de verdade do painel — sem framework, sem build step
+  estilos.css                 todo o CSS (tema claro/escuro, cards, modal, gráficos...)
+  helpers.js                  utilitários globais (salvos no localStorage, escape de HTML)
+  item-modal.js                card de PL + modal de detalhes (usado por pais.html/salvos.html)
+  hub.js / pais.js / noticias.js / salvos.js   lógica de cada página
+  _base.html / _modal.html    casca compartilhada (topbar, container, modal, footer)
+  *.body.html                 conteúdo específico de cada página (hub/pais/noticias/salvos)
 ```
+
+`src/report.py` só faz duas coisas: converte as linhas do banco pro JSON de
+`dados.js`, e monta cada página substituindo um punhado de placeholders
+(`$TITULO`, `$CORPO`, `$VERSAO`...) nos templates de `frontend/` via
+`string.Template` — nenhum CSS/JS fica embutido em string Python.

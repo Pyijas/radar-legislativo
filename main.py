@@ -6,9 +6,13 @@ Senado Federal) — Congresso dos EUA e Congresso do Chile continuam
 implementados e disponíveis via `--fontes`, mas não rodam por padrão desde
 11/09/2026 (a pedido do usuário, pra focar a coleta automática em Brasil).
 Além dos PLs, também coleta e classifica notícias da Anvisa, do Ministério
-da Saúde e da ANS, e a agenda pública do Presidente — ver "Monitoramento
-institucional" abaixo. Cada item (PL, notícia ou evento de agenda) é
-classificado por impacto em saúde/farma em duas camadas:
+da Saúde e da ANS, a agenda pública do Presidente, e mudanças regulatórias
+das agências de medicamentos da América Latina (ANMAT/Argentina,
+DIGEMID/Peru, ISP/Chile, Ministério da Saúde-AGEMED/Bolívia, MSP/Uruguai —
+adicionado em 11/09/2026; México/Equador/Colômbia/Paraguai ficaram de fora
+por ora, ver _FONTES_NOTICIAS abaixo) — ver "Monitoramento institucional"
+abaixo. Cada item (PL, notícia ou evento de agenda) é classificado por
+impacto em saúde/farma em duas camadas:
 
   1. Heurística por palavras-chave (PT ou EN) — sempre roda, 100% gratuita,
      determinística.
@@ -36,17 +40,33 @@ import sys
 import webbrowser
 from pathlib import Path
 
+import truststore
+
+# Alguns sites governamentais (ex: ISP do Chile) mandam uma cadeia de
+# certificado TLS incompleta — falta o intermediário. Navegadores e o curl
+# do macOS toleram isso porque buscam o intermediário faltante sozinhos
+# (AIA chasing); o verificador padrão do Python (OpenSSL + certifi) não, e
+# a conexão cai com SSLCertVerificationError. truststore troca o verificador
+# pelo nativo do SO (o mesmo mecanismo do Safari/curl) pra todo o processo —
+# mais correto, não menos seguro. Precisa rodar antes de qualquer `import
+# requests`/conexão HTTPS.
+truststore.inject_into_ssl()
+
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import (
-    agenda_presidente_client, ans_news_client, anvisa_news_client, camara_client,
-    chile_client, congress_client, heuristic_classify, paises, pdf_extract, publish,
-    report, saude_news_client, senado_client, storage,
+    agenda_presidente_client, anmat_client, ans_news_client, anvisa_news_client,
+    camara_client, chile_client, congress_client, digemid_client, heuristic_classify,
+    isp_chile_client, minsalud_bolivia_client, msp_uruguay_client, paises, pdf_extract,
+    publish, report, saude_news_client, senado_client, storage,
 )
-from src.classify import ClassificacaoIndisponivel, classificar, classificar_evento_agenda, classificar_noticia
+from src.classify import (
+    ClassificacaoIndisponivel, classificar, classificar_evento_agenda,
+    classificar_mudanca_regulatoria, classificar_noticia,
+)
 
 console = Console()
 
@@ -255,17 +275,34 @@ def coletar_e_classificar(dias: int, tipos: list[str], tem_ia: bool, fontes: lis
 
 
 _FONTES_NOTICIAS = {
-    "anvisa": anvisa_news_client,
-    "saude": saude_news_client,
-    "ans": ans_news_client,
+    # Brasil (Anvisa/MS/ANS) — notícia institucional geral, mesmo critério de
+    # impacto farmacêutico de sempre (inclui sinal de agenda/estratégia).
+    "anvisa": (anvisa_news_client, "pt", "geral"),
+    "saude": (saude_news_client, "pt", "geral"),
+    "ans": (ans_news_client, "pt", "geral"),
+    # Agências reguladoras de medicamentos da América Latina, adicionadas em
+    # 11/09/2026 a pedido do usuário — modo "regulatoria": critério mais
+    # restrito, só o que representa MUDANÇA REGULATÓRIA de verdade (nova
+    # norma, resolução, exigência de registro, alteração de preço/cobertura),
+    # não qualquer notícia institucional (ver
+    # _SYSTEM_PROMPT_MUDANCA_REGULATORIA em src/classify.py). Pesquisa de
+    # viabilidade dos 9 países pedidos em EXPANSAO-INTERNACIONAL.md — só
+    # estes 5 tiveram fonte sem autenticação/bloqueio anti-bot viável até
+    # agora (ver seção "Monitoramento regulatório América Latina" abaixo).
+    "anmat": (anmat_client, "es", "regulatoria"),               # Argentina
+    "digemid": (digemid_client, "es", "regulatoria"),           # Peru
+    "isp_cl": (isp_chile_client, "es", "regulatoria"),          # Chile
+    "minsalud_bo": (minsalud_bolivia_client, "es", "regulatoria"),  # Bolívia (inclui AGEMED)
+    "msp_uy": (msp_uruguay_client, "es", "regulatoria"),        # Uruguai
 }
 
 
 def _coletar_e_classificar_noticias(dias: int, tem_ia: bool) -> None:
-    """Coleta notícias da Anvisa/Ministério da Saúde/ANS e classifica com o
-    mesmo mecanismo heurística+IA dos PLs (ver src/classify.py,
-    classificar_noticia() — prompt específico pra notícia, mesmo schema)."""
-    for nome, cliente in _FONTES_NOTICIAS.items():
+    """Coleta notícias institucionais (Anvisa/MS/ANS + agências reguladoras
+    latino-americanas) e classifica com o mesmo mecanismo heurística+IA dos
+    PLs (ver src/classify.py — classificar_noticia() pro modo "geral",
+    classificar_mudanca_regulatoria() pro modo "regulatoria", mesmo schema)."""
+    for nome, (cliente, idioma, modo) in _FONTES_NOTICIAS.items():
         try:
             itens = cliente.listar_novas(dias)
         except Exception as exc:
@@ -277,7 +314,7 @@ def _coletar_e_classificar_noticias(dias: int, tem_ia: bool) -> None:
                       f"[bold]{len(novos)}[/bold] ainda não processadas.")
 
         for it in novos:
-            c = heuristic_classify.classificar(it.get("titulo") or "", it.get("resumo"), idioma="pt")
+            c = heuristic_classify.classificar(it.get("titulo") or "", it.get("resumo"), idioma=idioma)
             it.update(
                 ia_disponivel=0, fonte_classificacao="heuristica", relevante=c["relevante"],
                 justificativa_relevancia=c["justificativa_relevancia"], resumo_ia=c["resumo"],
@@ -286,7 +323,8 @@ def _coletar_e_classificar_noticias(dias: int, tem_ia: bool) -> None:
             )
             if tem_ia:
                 try:
-                    c_ia = classificar_noticia(it.get("titulo") or "", it.get("resumo"))
+                    classificar_fn = classificar_mudanca_regulatoria if modo == "regulatoria" else classificar_noticia
+                    c_ia = classificar_fn(it.get("titulo") or "", it.get("resumo"))
                     it.update(
                         ia_disponivel=1, fonte_classificacao="ia", relevante=c_ia["relevante"],
                         justificativa_relevancia=c_ia["justificativa_relevancia"],

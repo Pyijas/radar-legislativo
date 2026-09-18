@@ -1,10 +1,10 @@
 """
 Publicação automática do relatório no GitHub Pages.
 
-Copia o relatório mais recente (index.html, pais.html, dados.js e
-salvos.html) para docs/ e faz commit + push, se houver um repositório git
-configurado com remoto. Falha silenciosamente (só avisa) se não houver rede,
-remoto ou repositório — nunca derruba a coleta.
+Copia o relatório mais recente (HTML + dados.js) e os arquivos estáticos de
+frontend/ (CSS/JS) para docs/ e faz commit + push, se houver um repositório
+git configurado com remoto. Falha silenciosamente (só avisa) se não houver
+rede, remoto ou repositório — nunca derruba a coleta.
 """
 from __future__ import annotations
 
@@ -12,8 +12,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from src.report import _ARQUIVOS_ESTATICOS
+
 _RAIZ = Path(__file__).resolve().parent.parent
 _DOCS = _RAIZ / "docs"
+_FRONTEND = _RAIZ / "frontend"
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
@@ -47,7 +50,11 @@ def publicar(relatorio_html: Path) -> tuple[bool, str]:
             if src.exists():
                 shutil.copy(src, dst)
 
+        for nome in _ARQUIVOS_ESTATICOS:
+            shutil.copy(_FRONTEND / nome, _DOCS / nome)
+
         arquivos_rel = ["docs/index.html", "docs/pais.html", "docs/noticias.html", "docs/dados.js", "docs/salvos.html"]
+        arquivos_rel += [f"docs/{nome}" for nome in _ARQUIVOS_ESTATICOS]
         status = _git("status", "--porcelain", "--", *arquivos_rel)
         if not status.stdout.strip():
             return False, "sem mudanças no relatório desde a última publicação"
