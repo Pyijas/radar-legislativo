@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Monitoramento — Radar Legislativo</title>
+<title>Atos e publicações — Radar Legislativo</title>
 <meta name="description" content="Monitoramento de projetos de lei, atos regulatórios e agenda pública com impacto na indústria farmacêutica brasileira.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilos.css?v=20260918095418">
+<link rel="stylesheet" href="estilos.css?v=20260918101223">
 </head>
 <body>
 
@@ -38,11 +38,11 @@
       </svg>
       <span>
         <h1 id="marcaTitulo">Radar Legislativo</h1>
-        <span class="sub" id="marcaSub">Atos e agenda</span>
+        <span class="sub" id="marcaSub">Reguladores</span>
       </span>
     </a>
     <nav class="topbar-right">
-      <span class="live"><span class="pulse"></span>18/09/2026, 09:54</span><a href="index.html"><svg class="ico"><use href="#ico-doc"/></svg><span>Proposições</span></a><a href="salvos.html"><svg class="ico"><use href="#ico-estrela"/></svg><span>Salvas</span><span class="contador-salvos">0</span></a>
+      <span class="live"><span class="pulse"></span>18/09/2026, 10:12</span><a href="index.html"><svg class="ico"><use href="#ico-doc"/></svg><span>Proposições</span></a><a href="noticias.html" class="is-active"><svg class="ico"><use href="#ico-radar"/></svg><span>Atos</span></a><a href="agenda.html"><svg class="ico"><use href="#ico-calendario"/></svg><span>Agenda</span></a><a href="salvos.html"><svg class="ico"><use href="#ico-estrela"/></svg><span>Salvas</span><span class="contador-salvos">0</span></a>
       <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener" title="Código-fonte no GitHub">
         <svg class="ico"><use href="#ico-github"/></svg><span>Código</span>
       </a>
@@ -52,11 +52,10 @@
   <main class="container">
     <div class="page-head rise">
       <div class="eyebrow">Monitoramento institucional</div>
-      <h2>Atos, publicações e agenda pública</h2>
-      <p>Anvisa, Ministério da Saúde e ANS, mais a agenda oficial do Presidente da República,
-      do Ministro da Saúde, do Ministro do Desenvolvimento, Indústria e Comércio e do
-      diretor-presidente da Anvisa. O mesmo critério de impacto aplicado às proposições vale aqui:
-      entra o que move registro, preço, cobertura ou posição competitiva.</p>
+      <h2>Atos e publicações dos reguladores</h2>
+      <p>Anvisa, Ministério da Saúde e ANS. O mesmo critério de impacto aplicado às proposições
+      vale aqui: entra o que move registro, preço, cobertura ou posição competitiva.
+      A agenda das autoridades tem <a href="agenda.html">página própria</a>, organizada por data.</p>
     </div>
 
     <div class="kpis rise" id="kpis" style="--i:1"></div>
@@ -65,11 +64,6 @@
       <div class="search">
         <svg class="ico"><use href="#ico-busca"/></svg>
         <input type="text" id="busca" placeholder="Buscar por título, órgão ou autoridade" aria-label="Buscar registros">
-      </div>
-      <div class="segmented" id="fTipo" data-value="todos">
-        <button data-v="todos" class="active">Tudo</button>
-        <button data-v="noticia">Atos e publicações</button>
-        <button data-v="agenda">Agenda</button>
       </div>
       <div class="segmented" id="fNivel" data-value="todos">
         <button data-v="todos" class="active">Todos</button>
@@ -82,22 +76,12 @@
         <option value="anvisa">Anvisa</option>
         <option value="saude">Ministério da Saúde</option>
         <option value="ans">ANS</option>
-        <option value="agenda">Agenda de autoridades</option>
       </select>
       <button class="clear-btn" id="limpar">Limpar</button>
     </div>
 
     <div class="contagem" id="contagem"></div>
-
-    <section class="mon-secao-grupo">
-      <div class="secao">Atos e publicações <span class="cont" id="ctgNoticias"></span></div>
-      <div class="mon-grid stagger" id="gridNoticias"></div>
-    </section>
-
-    <section class="mon-secao-grupo">
-      <div class="secao">Agenda de autoridades <span class="cont" id="ctgAgenda"></span></div>
-      <div class="mon-grid stagger" id="gridAgenda"></div>
-    </section>
+    <div class="mon-grid stagger" id="gridNoticias"></div>
 
   </main>
 
@@ -147,8 +131,8 @@
     </div>
   </footer>
 
-<script src="dados.js?v=20260918095418"></script>
-<script src="helpers.js?v=20260918095418"></script>
-<script src="noticias.js?v=20260918095418"></script>
+<script src="dados.js?v=20260918101223"></script>
+<script src="helpers.js?v=20260918101223"></script>
+<script src="noticias.js?v=20260918101223"></script>
 </body>
 </html>

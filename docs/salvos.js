@@ -3,7 +3,6 @@
 (function () {
   const DADOS = window.RADAR_DADOS || [];
   const RANK = { alto: 0, "médio": 1, baixo: 2 };
-  const REDUZIR_MOVIMENTO = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const el = {
     busca: document.getElementById('busca'),
@@ -45,10 +44,7 @@
       : '<div class="vazio">Nenhuma proposição salva ainda.<br>Na <a href="index.html">lista principal</a>, use a estrela de cada registro para guardar aqui.</div>';
   }
 
-  function render() {
-    if (REDUZIR_MOVIMENTO || !document.startViewTransition) { pintar(); return; }
-    document.startViewTransition(() => pintar());
-  }
+  function render() { transicionar(pintar); }
 
   function exportarCSV() {
     const itens = aplicarFiltros();
