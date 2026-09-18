@@ -3,61 +3,136 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Radar Legislativo — Saúde/Farma</title>
-<meta name="description" content="Monitoramento automático de projetos de lei federais com impacto no setor de saúde e farmacêutico, classificados por IA.">
+<title>Radar Legislativo — Saúde e Farma</title>
+<meta name="description" content="Monitoramento de projetos de lei, atos regulatórios e agenda pública com impacto na indústria farmacêutica brasileira.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilos.css?v=20260918093656">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css?v=20260918095418">
 </head>
 <body>
-  <div class="topbar">
-    <div class="brand">
-      <span class="dot"></span>
-      <div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="ico-busca" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.2-4.2"/></symbol>
+  <symbol id="ico-estrela" viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z"/></symbol>
+  <symbol id="ico-doc" viewBox="0 0 24 24"><path d="M14 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 13h6M9 16.5h4"/></symbol>
+  <symbol id="ico-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><path d="M16.3 7.7a6 6 0 0 1 0 8.6"/><path d="M7.7 16.3a6 6 0 0 1 0-8.6"/><path d="M19.5 4.5a10.5 10.5 0 0 1 0 15" opacity=".5"/><path d="M4.5 19.5a10.5 10.5 0 0 1 0-15" opacity=".5"/></symbol>
+  <symbol id="ico-calendario" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5"/><path d="M3.5 9.5h17M8 3.5V6.5M16 3.5V6.5"/></symbol>
+  <symbol id="ico-seta-dir" viewBox="0 0 24 24"><path d="M5 12h13.5"/><path d="m13 6.5 5.5 5.5-5.5 5.5"/></symbol>
+  <symbol id="ico-seta-esq" viewBox="0 0 24 24"><path d="M19 12H5.5"/><path d="m11 6.5-5.5 5.5 5.5 5.5"/></symbol>
+  <symbol id="ico-fechar" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="ico-local" viewBox="0 0 24 24"><path d="M12 21s6.5-6.1 6.5-10.6a6.5 6.5 0 0 0-13 0C5.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10.2" r="2.4"/></symbol>
+  <symbol id="ico-instituicao" viewBox="0 0 24 24"><path d="M3.8 9.5 12 4.5l8.2 5"/><path d="M5.5 9.5v9M10 9.5v9M14 9.5v9M18.5 9.5v9"/><path d="M3.5 18.5h17"/></symbol>
+  <symbol id="ico-fluxo" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-13.7 5.6"/><path d="M4 12a8 8 0 0 1 13.7-5.6"/><path d="M4 7.5V12h4.5M20 16.5V12h-4.5"/></symbol>
+  <symbol id="ico-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/></symbol>
+  <symbol id="ico-github" viewBox="0 0 16 16"><path fill="currentColor" stroke="none" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></symbol>
+</svg>
+
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" opacity=".28"/>
+        <circle cx="12" cy="12" r="5.4" opacity=".5"/>
+        <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/>
+        <g class="sweep"><path d="M12 12 12 2.8" stroke-width="1.8"/></g>
+      </svg>
+      <span>
         <h1 id="marcaTitulo">Radar Legislativo</h1>
-        <div class="sub" id="marcaSub">Escolha um país</div>
+        <span class="sub" id="marcaSub">Brasil</span>
+      </span>
+    </a>
+    <nav class="topbar-right">
+      <span class="live"><span class="pulse"></span>18/09/2026, 09:54</span><a href="noticias.html"><svg class="ico"><use href="#ico-radar"/></svg><span>Monitoramento</span></a><a href="salvos.html"><svg class="ico"><use href="#ico-estrela"/></svg><span>Salvas</span><span class="contador-salvos">0</span></a>
+      <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener" title="Código-fonte no GitHub">
+        <svg class="ico"><use href="#ico-github"/></svg><span>Código</span>
+      </a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="page-head rise">
+      <div class="eyebrow">Congresso Nacional</div>
+      <h2>Projetos de lei com impacto no setor farmacêutico</h2>
+      <p>Câmara dos Deputados e Senado Federal. Cada proposição é lida e classificada pelo efeito
+      que produz sobre registro, preço, patente, prescrição, fabricação ou cobertura de medicamentos —
+      não por tratar de saúde em geral.</p>
+    </div>
+
+    <div class="kpis rise" id="kpis" style="--i:1"></div>
+
+    <section class="charts rise" style="--i:2" aria-label="Panorama">
+      <div class="panel">
+        <h3>Distribuição por impacto</h3>
+        <div class="chart-wrap"><canvas id="chartImpacto"></canvas></div>
       </div>
-    </div>
-    <div class="topbar-right">
-      <span class="live"><span class="pulse"></span> Atualizado 18/09/2026 às 09:36</span><a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>
-      <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg> código-fonte</a>
-    </div>
-  </div>
+      <div class="panel">
+        <h3>Áreas mais recorrentes</h3>
+        <div class="chart-wrap"><canvas id="chartAreas"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Apresentações por mês</h3>
+        <div class="chart-wrap"><canvas id="chartMeses"></canvas></div>
+      </div>
+    </section>
 
-  <div class="container">
-    <div class="hub-hero rise">
-      <h2>Escolha um país pra acompanhar</h2>
-      <p>Cada país reúne os projetos de lei com potencial impacto em saúde/farma, classificados por IA.
-      Onde há mais de uma casa legislativa, elas aparecem separadas dentro do país.</p>
-    </div>
-
-    <a class="monitor-banner rise" id="monitorBanner" href="noticias.html" hidden>
-      <div class="monitor-banner-icon">📡</div>
-      <div class="monitor-banner-texto">
+    <a class="monitor-banner rise" id="monitorBanner" href="noticias.html" hidden style="--i:3">
+      <span class="monitor-banner-icon"><svg class="ico"><use href="#ico-radar"/></svg></span>
+      <span class="monitor-banner-texto">
         <h3>Monitoramento institucional</h3>
-        <p>Notícias do Brasil, agenda de autoridades (Presidente, Min. Saúde, MDIC, Anvisa), e mudanças
-        regulatórias nas agências de medicamentos da América Latina (🇦🇷🇵🇪🇨🇱🇧🇴🇺🇾) — <span id="monBannerContagem"></span></p>
-      </div>
-      <div class="monitor-banner-seta">→</div>
+        <p>Atos da Anvisa, do Ministério da Saúde e da ANS, mais a agenda pública do Presidente,
+        do Ministro da Saúde, do Ministro do MDIC e do diretor-presidente da Anvisa —
+        <span id="monBannerContagem"></span></p>
+      </span>
+      <span class="monitor-banner-seta"><svg class="ico"><use href="#ico-seta-dir"/></svg></span>
     </a>
 
-    <div class="secao-titulo">Em acompanhamento (projetos de lei)</div>
-    <div class="paises-grid rise" id="paisesGrid" style="animation-delay:.05s"></div>
+    <div class="secao" id="tituloListaPls">Proposições</div>
 
-    <div class="secao-titulo">Em breve · <a href="https://github.com/Pyijas/radar-legislativo/blob/master/EXPANSAO-INTERNACIONAL.md" target="_blank" rel="noopener">ver pesquisa de viabilidade</a></div>
-    <div class="paises-grid" id="emBreveGrid"></div>
+    <div class="toolbar rise" style="--i:4">
+      <div class="search">
+        <svg class="ico"><use href="#ico-busca"/></svg>
+        <input type="text" id="busca" placeholder="Buscar por número, ementa, área ou autoria" aria-label="Buscar proposições">
+      </div>
+      <div class="segmented" id="fCasa" data-value="todos">
+        <button data-v="todos" class="active">Ambas as casas</button>
+        <button data-v="camara">Câmara</button>
+        <button data-v="senado">Senado</button>
+      </div>
+      <div class="segmented" id="fNivel" data-value="todos">
+        <button data-v="todos" class="active">Todos</button>
+        <button data-v="alto">Alto</button>
+        <button data-v="médio">Médio</button>
+        <button data-v="baixo">Baixo</button>
+      </div>
+      <select class="pill" id="fArea" aria-label="Filtrar por área"><option value="todos">Área: todas</option></select>
+      <select class="pill" id="fOrgao" aria-label="Filtrar por órgão"><option value="todos">Órgão: todos</option></select>
+      <select class="pill" id="fSituacao" aria-label="Filtrar por situação"><option value="todos">Situação: todas</option></select>
+      <select class="pill" id="fOrdem" aria-label="Ordenar">
+        <option value="data_desc">Mais recentes</option>
+        <option value="data_asc">Mais antigos</option>
+        <option value="impacto">Maior impacto</option>
+      </select>
+      <button class="clear-btn" id="limpar">Limpar</button>
+    </div>
 
-  </div>
+    <div class="contagem" id="contagem"></div>
+    <div id="corpo" class="stagger"></div>
+    <div class="rodape-lista" id="rodape"></div>
+
+  </main>
 
   <div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal" id="modal">
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
       <div class="modal-top">
         <div class="modal-top-left">
           <span class="badge" id="modalBadge"></span>
-          <button class="star-btn" id="modalStar" title="Salvar"></button>
+          <button class="star-btn" id="modalStar" title="Salvar" aria-label="Salvar">
+            <svg class="ico"><use href="#ico-estrela"/></svg>
+          </button>
         </div>
-        <button class="modal-close" id="modalClose" aria-label="Fechar">✕</button>
+        <button class="modal-close" id="modalClose" aria-label="Fechar">
+          <svg class="ico"><use href="#ico-fechar"/></svg>
+        </button>
       </div>
       <h2 id="modalTitulo"></h2>
       <div class="item-meta" id="modalMeta"></div>
@@ -76,7 +151,7 @@
         <p id="modalAbrangencia"></p>
       </div>
       <div class="modal-section" id="modalAutoresWrap" hidden>
-        <h4>Autor(es)</h4>
+        <h4>Autoria</h4>
         <p id="modalAutores"></p>
       </div>
     </div>
@@ -84,14 +159,18 @@
 
 
   <footer>
-    Dados públicos das APIs/serviços oficiais da Câmara dos Deputados, do Senado Federal, da Anvisa, do Ministério da Saúde, da ANS, do Planalto, do e-Agendas/CGU,
-    da ANMAT (Argentina), DIGEMID (Peru), ISP (Chile), Ministério da Saúde/AGEMED (Bolívia) e MSP (Uruguai)
-    (Congresso dos EUA e Congresso Nacional do Chile também implementados, disponíveis via <code>--fontes</code>)
-    · Classificação por IA · <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener">ver código-fonte</a>
+    <div class="wrap">
+      Dados públicos das APIs e serviços oficiais da Câmara dos Deputados, do Senado Federal,
+      da Anvisa, do Ministério da Saúde, da ANS, da Presidência da República e do e-Agendas/CGU.
+      Classificação de impacto revisada item a item.
+      <a href="https://github.com/Pyijas/radar-legislativo" target="_blank" rel="noopener">Ver código-fonte</a>.
+    </div>
   </footer>
 
-<script src="dados.js?v=20260918093656"></script>
-<script src="helpers.js?v=20260918093656"></script>
-<script src="hub.js?v=20260918093656"></script>
+<script src="dados.js?v=20260918095418"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="helpers.js?v=20260918095418"></script>
+<script src="item-modal.js?v=20260918095418"></script>
+<script src="brasil.js?v=20260918095418"></script>
 </body>
 </html>
