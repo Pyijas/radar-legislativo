@@ -1,0 +1,66 @@
+    <div class="page-head rise">
+      <div class="eyebrow">Agenda pública</div>
+      <h2>Compromissos das autoridades</h2>
+      <p>Presidente da República, Ministro da Saúde, Ministro do Desenvolvimento, Indústria e Comércio
+      e diretor-presidente da Anvisa. Escolha um dia no calendário — ou arraste com Shift para ver um
+      intervalo — e veja o que estava na agenda, com a leitura de impacto para o setor.</p>
+    </div>
+
+    <div class="kpis rise" id="kpis" style="--i:1"></div>
+
+    <div class="agenda-layout">
+      <aside class="agenda-aside rise" style="--i:2">
+        <div class="cal">
+          <div class="cal-head">
+            <h3 id="calMes">—</h3>
+            <div class="cal-nav">
+              <button id="calAnterior" aria-label="Mês anterior"><svg class="ico"><use href="#ico-seta-esq"/></svg></button>
+              <button id="calProximo" aria-label="Próximo mês"><svg class="ico"><use href="#ico-seta-dir"/></svg></button>
+            </div>
+          </div>
+          <div class="cal-semana" aria-hidden="true">
+            <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+
+        <div class="cal-atalhos">
+          <button data-atalho="ultimo-dia">Último dia com registro</button>
+          <button data-atalho="semana">Últimos 7 dias</button>
+          <button data-atalho="mes">Mês inteiro</button>
+          <button data-atalho="tudo">Todo o período</button>
+        </div>
+
+        <div class="cal-legenda">
+          <span><i class="alto"></i> Alto impacto no setor</span>
+          <span><i class="médio"></i> Impacto médio</span>
+          <span><i class="baixo"></i> Sem efeito direto</span>
+        </div>
+      </aside>
+
+      <section class="agenda-conteudo">
+        <div class="toolbar rise" style="--i:3">
+          <div class="search">
+            <svg class="ico"><use href="#ico-busca"/></svg>
+            <input type="text" id="busca" placeholder="Buscar por compromisso, empresa ou local" aria-label="Buscar compromissos">
+          </div>
+          <select class="pill" id="fAutoridade" aria-label="Filtrar por autoridade">
+            <option value="todos">Todas as autoridades</option>
+          </select>
+          <div class="segmented" id="fNivel" data-value="todos">
+            <button data-v="todos" class="active">Todos</button>
+            <button data-v="alto">Alto</button>
+            <button data-v="médio">Médio</button>
+            <button data-v="baixo">Baixo</button>
+          </div>
+          <button class="clear-btn" id="limpar">Limpar</button>
+        </div>
+
+        <div class="agenda-periodo">
+          <h3 id="periodoTitulo">—</h3>
+          <span class="resumo-dia" id="periodoResumo"></span>
+        </div>
+
+        <div id="listaAgenda" class="stagger"></div>
+      </section>
+    </div>

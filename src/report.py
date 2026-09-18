@@ -34,7 +34,7 @@ REPO_URL = "https://github.com/Pyijas/radar-legislativo"
 _FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 _ARQUIVOS_ESTATICOS = [
     "estilos.css", "helpers.js", "item-modal.js",
-    "brasil.js", "noticias.js", "salvos.js",
+    "brasil.js", "noticias.js", "agenda.js", "salvos.js",
 ]
 _CHART_CDN_TPL = '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>\n'
 
@@ -192,11 +192,28 @@ def _ico(nome: str) -> str:
     return f'<svg class="ico"><use href="#ico-{nome}"/></svg>'
 
 
-def _link_salvos() -> str:
+def _link_salvos(ativo: bool = False) -> str:
+    classe = ' class="is-active"' if ativo else ""
     return (
-        '<a href="salvos.html">' + _ico("estrela") +
+        f'<a href="salvos.html"{classe}>' + _ico("estrela") +
         '<span>Salvas</span><span class="contador-salvos">0</span></a>'
     )
+
+
+def _nav(atual: str) -> str:
+    """Menu das quatro páginas, marcando a atual. `atual` é a chave do corpo
+    (brasil, noticias, agenda, salvos)."""
+    itens = [
+        ("brasil", "index.html", "doc", "Proposições"),
+        ("noticias", "noticias.html", "radar", "Atos"),
+        ("agenda", "agenda.html", "calendario", "Agenda"),
+    ]
+    partes = []
+    for chave, href, icone, rotulo in itens:
+        classe = ' class="is-active"' if chave == atual else ""
+        partes.append(f'<a href="{href}"{classe}>{_ico(icone)}<span>{rotulo}</span></a>')
+    partes.append(_link_salvos(atual == "salvos"))
+    return "".join(partes)
 
 
 def gerar_html(linhas: list, caminho: str | Path, noticias: list | None = None,
@@ -238,6 +255,7 @@ def gerar_html(linhas: list, caminho: str | Path, noticias: list | None = None,
 
     _gerar_brasil_html(caminho, gerado_em, versao)
     _gerar_noticias_html(caminho.parent / "noticias.html", gerado_em, versao)
+    _gerar_agenda_html(caminho.parent / "agenda.html", gerado_em, versao)
     _gerar_salvos_html(caminho.parent / "salvos.html", versao)
     return caminho
 
@@ -245,11 +263,7 @@ def gerar_html(linhas: list, caminho: str | Path, noticias: list | None = None,
 def _gerar_brasil_html(caminho: Path, gerado_em: str, versao: str) -> Path:
     """Dashboard de proposições do Brasil — é a página inicial desde
     18/09/2026 (antes o index era um hub de escolha de país)."""
-    topbar = (
-        f'<span class="live"><span class="pulse"></span>{gerado_em}</span>'
-        '<a href="noticias.html">' + _ico("radar") + '<span>Monitoramento</span></a>'
-        + _link_salvos()
-    )
+    topbar = f'<span class="live"><span class="pulse"></span>{gerado_em}</span>' + _nav("brasil")
     scripts_antes = (
         _CHART_CDN_TPL
         + _script_tag("helpers.js", versao)
@@ -265,16 +279,27 @@ def _gerar_brasil_html(caminho: Path, gerado_em: str, versao: str) -> Path:
 
 
 def _gerar_noticias_html(caminho: Path, gerado_em: str, versao: str) -> Path:
-    """Monitoramento institucional: atos da Anvisa/Ministério da Saúde/ANS e
-    agenda pública das autoridades (Presidência, Saúde, MDIC, Anvisa)."""
-    topbar = (
-        f'<span class="live"><span class="pulse"></span>{gerado_em}</span>'
-        '<a href="index.html">' + _ico("doc") + '<span>Proposições</span></a>'
-        + _link_salvos()
-    )
+    """Atos e publicações da Anvisa, do Ministério da Saúde e da ANS. A
+    agenda das autoridades saiu daqui em 18/09/2026 — ver
+    _gerar_agenda_html()."""
+    topbar = f'<span class="live"><span class="pulse"></span>{gerado_em}</span>' + _nav("noticias")
     doc = _pagina(
-        "noticias", titulo="Monitoramento — Radar Legislativo",
-        subtitulo="Atos e agenda", topbar_extra=topbar, script_pagina="noticias.js",
+        "noticias", titulo="Atos e publicações — Radar Legislativo",
+        subtitulo="Reguladores", topbar_extra=topbar, script_pagina="noticias.js",
+        scripts_antes=_script_tag("helpers.js", versao), versao=versao,
+    )
+    caminho.write_text(doc, encoding="utf-8")
+    return caminho
+
+
+def _gerar_agenda_html(caminho: Path, gerado_em: str, versao: str) -> Path:
+    """Agenda pública das autoridades em página própria, com calendário de
+    seleção de dias — pedido do usuário em 18/09/2026: dentro da lista de
+    notícias ela confundia, porque agenda se navega por data."""
+    topbar = f'<span class="live"><span class="pulse"></span>{gerado_em}</span>' + _nav("agenda")
+    doc = _pagina(
+        "agenda", titulo="Agenda das autoridades — Radar Legislativo",
+        subtitulo="Compromissos", topbar_extra=topbar, script_pagina="agenda.js",
         scripts_antes=_script_tag("helpers.js", versao), versao=versao,
     )
     caminho.write_text(doc, encoding="utf-8")
@@ -282,10 +307,7 @@ def _gerar_noticias_html(caminho: Path, gerado_em: str, versao: str) -> Path:
 
 
 def _gerar_salvos_html(caminho: Path, versao: str = "0") -> Path:
-    topbar = (
-        '<a href="index.html">' + _ico("seta-esq") + '<span>Proposições</span></a>'
-        '<a href="noticias.html">' + _ico("radar") + '<span>Monitoramento</span></a>'
-    )
+    topbar = _nav("salvos")
     scripts_antes = _script_tag("helpers.js", versao) + _script_tag("item-modal.js", versao)
     doc = _pagina(
         "salvos", titulo="Salvas — Radar Legislativo", subtitulo="Sua seleção",

@@ -1,10 +1,9 @@
     <div class="page-head rise">
       <div class="eyebrow">Monitoramento institucional</div>
-      <h2>Atos, publicações e agenda pública</h2>
-      <p>Anvisa, Ministério da Saúde e ANS, mais a agenda oficial do Presidente da República,
-      do Ministro da Saúde, do Ministro do Desenvolvimento, Indústria e Comércio e do
-      diretor-presidente da Anvisa. O mesmo critério de impacto aplicado às proposições vale aqui:
-      entra o que move registro, preço, cobertura ou posição competitiva.</p>
+      <h2>Atos e publicações dos reguladores</h2>
+      <p>Anvisa, Ministério da Saúde e ANS. O mesmo critério de impacto aplicado às proposições
+      vale aqui: entra o que move registro, preço, cobertura ou posição competitiva.
+      A agenda das autoridades tem <a href="agenda.html">página própria</a>, organizada por data.</p>
     </div>
 
     <div class="kpis rise" id="kpis" style="--i:1"></div>
@@ -13,11 +12,6 @@
       <div class="search">
         <svg class="ico"><use href="#ico-busca"/></svg>
         <input type="text" id="busca" placeholder="Buscar por título, órgão ou autoridade" aria-label="Buscar registros">
-      </div>
-      <div class="segmented" id="fTipo" data-value="todos">
-        <button data-v="todos" class="active">Tudo</button>
-        <button data-v="noticia">Atos e publicações</button>
-        <button data-v="agenda">Agenda</button>
       </div>
       <div class="segmented" id="fNivel" data-value="todos">
         <button data-v="todos" class="active">Todos</button>
@@ -30,19 +24,9 @@
         <option value="anvisa">Anvisa</option>
         <option value="saude">Ministério da Saúde</option>
         <option value="ans">ANS</option>
-        <option value="agenda">Agenda de autoridades</option>
       </select>
       <button class="clear-btn" id="limpar">Limpar</button>
     </div>
 
     <div class="contagem" id="contagem"></div>
-
-    <section class="mon-secao-grupo">
-      <div class="secao">Atos e publicações <span class="cont" id="ctgNoticias"></span></div>
-      <div class="mon-grid stagger" id="gridNoticias"></div>
-    </section>
-
-    <section class="mon-secao-grupo">
-      <div class="secao">Agenda de autoridades <span class="cont" id="ctgAgenda"></span></div>
-      <div class="mon-grid stagger" id="gridAgenda"></div>
-    </section>
+    <div class="mon-grid stagger" id="gridNoticias"></div>

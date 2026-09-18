@@ -10,7 +10,6 @@
   const RANK = { alto: 0, "médio": 1, baixo: 2 };
   const PAGE_SIZE = 20;
   const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const REDUZIR_MOVIMENTO = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const css = getComputedStyle(document.documentElement);
   const cor = (v) => css.getPropertyValue(v).trim();
@@ -31,7 +30,6 @@
   };
 
   let paginaAtual = 1;
-  let kpisRenderizados = false;
 
   RadarModal.setDados(DADOS);
   RadarModal.ligarCliquesGrid(el.corpo);
@@ -95,41 +93,7 @@
     return itens;
   }
 
-  function animarNumero(elemento, alvo) {
-    if (REDUZIR_MOVIMENTO) {
-      elemento.textContent = alvo.toLocaleString('pt-BR');
-      return;
-    }
-    const partida = parseInt(elemento.dataset.valor || '0', 10);
-    elemento.dataset.valor = String(alvo);
-    const inicio = performance.now();
-    const duracao = 620;
-    function passo(agora) {
-      const t = Math.min(1, (agora - inicio) / duracao);
-      const ease = 1 - Math.pow(1 - t, 4);
-      elemento.textContent = Math.round(partida + (alvo - partida) * ease).toLocaleString('pt-BR');
-      if (t < 1) requestAnimationFrame(passo);
-    }
-    requestAnimationFrame(passo);
-  }
 
-  function renderKpis(itens) {
-    const porNivel = { alto: 0, "médio": 0, baixo: 0 };
-    for (const d of itens) if (d.nivel in porNivel) porNivel[d.nivel]++;
-    const cards = [
-      ['', itens.length, 'Proposições'],
-      ['alto', porNivel.alto, 'Impacto alto'],
-      ['medio', porNivel["médio"], 'Impacto médio'],
-      ['baixo', porNivel.baixo, 'Impacto baixo'],
-    ];
-    if (!kpisRenderizados) {
-      el.kpis.innerHTML = cards.map(([cls, , rotulo], i) =>
-        `<div class="kpi ${cls}"><span class="n" data-i="${i}" data-valor="0">0</span><span class="l">${rotulo}</span></div>`
-      ).join('');
-      kpisRenderizados = true;
-    }
-    cards.forEach(([, n], i) => animarNumero(el.kpis.querySelector(`[data-i="${i}"]`), n));
-  }
 
   let chImpacto, chAreas, chMeses, ultimosItens = [];
   function renderCharts(itens) {
@@ -150,7 +114,7 @@
     Chart.defaults.font.family = "'IBM Plex Mono', monospace";
     Chart.defaults.font.size = 10;
     Chart.defaults.color = cor('--ink-3');
-    Chart.defaults.animation = REDUZIR_MOVIMENTO ? false : { duration: 700, easing: 'easeOutQuart' };
+    Chart.defaults.animation = PREFERE_MENOS_MOVIMENTO ? false : { duration: 700, easing: 'easeOutQuart' };
 
     const gridCor = cor('--rule');
     const tooltipBase = {
@@ -255,7 +219,7 @@
 
   function pintarLista() {
     const itens = aplicarFiltros();
-    renderKpis(itens);
+    renderKpis(el.kpis, itens, ['Proposições', 'Impacto alto', 'Impacto médio', 'Impacto baixo']);
     renderCharts(itens);
     el.contagem.innerHTML = `<b>${itens.length.toLocaleString('pt-BR')}</b> ${itens.length === 1 ? 'proposição' : 'proposições'}`;
 
@@ -271,16 +235,9 @@
     if (maisBtn) maisBtn.addEventListener('click', () => { paginaAtual++; pintarLista(); });
   }
 
-  // View Transitions dão o crossfade entre estados de filtro sem
-  // reimplementar FLIP na mão; onde não houver suporte, cai no render direto.
-  function renderPagina() {
-    if (REDUZIR_MOVIMENTO || !document.startViewTransition) { pintarLista(); return; }
-    document.startViewTransition(() => pintarLista());
-  }
-
   function render() {
     paginaAtual = 1;
-    renderPagina();
+    transicionar(pintarLista);
   }
 
   let debounce;
@@ -309,12 +266,14 @@
   atualizarContadorSalvos();
   pintarLista();
 
-  const totalMonitor = (window.RADAR_NOTICIAS || []).length + (window.RADAR_AGENDA || []).length;
-  if (totalMonitor > 0) {
-    const alto = (window.RADAR_NOTICIAS || []).concat(window.RADAR_AGENDA || [])
-      .filter(d => d.nivel === 'alto').length;
-    document.getElementById('monBannerContagem').textContent =
-      totalMonitor.toLocaleString('pt-BR') + ' registros' + (alto ? ', ' + alto + ' de alto impacto' : '');
-    document.getElementById('monitorBanner').hidden = false;
+  function ligarAcesso(idLink, idContagem, itens, singular, plural) {
+    if (!itens.length) return;
+    const alto = itens.filter(d => d.nivel === 'alto').length;
+    document.getElementById(idContagem).textContent =
+      itens.length.toLocaleString('pt-BR') + ' ' + (itens.length === 1 ? singular : plural) +
+      (alto ? ', ' + alto + ' de alto impacto' : '');
+    document.getElementById(idLink).hidden = false;
   }
+  ligarAcesso('acessoAtos', 'contAtos', window.RADAR_NOTICIAS || [], 'publicação', 'publicações');
+  ligarAcesso('acessoAgenda', 'contAgenda', window.RADAR_AGENDA || [], 'compromisso', 'compromissos');
 })();

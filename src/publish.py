@@ -42,6 +42,7 @@ def publicar(relatorio_html: Path) -> tuple[bool, str]:
         pares = [
             (origem, _DOCS / "index.html"),
             (origem.parent / "noticias.html", _DOCS / "noticias.html"),
+            (origem.parent / "agenda.html", _DOCS / "agenda.html"),
             (origem.parent / "salvos.html", _DOCS / "salvos.html"),
             (origem.parent / "dados.js", _DOCS / "dados.js"),
         ]
