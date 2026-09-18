@@ -1,0 +1,68 @@
+    <div class="page-head rise">
+      <div class="eyebrow">Congresso Nacional</div>
+      <h2>Projetos de lei com impacto no setor farmacêutico</h2>
+      <p>Câmara dos Deputados e Senado Federal. Cada proposição é lida e classificada pelo efeito
+      que produz sobre registro, preço, patente, prescrição, fabricação ou cobertura de medicamentos —
+      não por tratar de saúde em geral.</p>
+    </div>
+
+    <div class="kpis rise" id="kpis" style="--i:1"></div>
+
+    <section class="charts rise" style="--i:2" aria-label="Panorama">
+      <div class="panel">
+        <h3>Distribuição por impacto</h3>
+        <div class="chart-wrap"><canvas id="chartImpacto"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Áreas mais recorrentes</h3>
+        <div class="chart-wrap"><canvas id="chartAreas"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Apresentações por mês</h3>
+        <div class="chart-wrap"><canvas id="chartMeses"></canvas></div>
+      </div>
+    </section>
+
+    <a class="monitor-banner rise" id="monitorBanner" href="noticias.html" hidden style="--i:3">
+      <span class="monitor-banner-icon"><svg class="ico"><use href="#ico-radar"/></svg></span>
+      <span class="monitor-banner-texto">
+        <h3>Monitoramento institucional</h3>
+        <p>Atos da Anvisa, do Ministério da Saúde e da ANS, mais a agenda pública do Presidente,
+        do Ministro da Saúde, do Ministro do MDIC e do diretor-presidente da Anvisa —
+        <span id="monBannerContagem"></span></p>
+      </span>
+      <span class="monitor-banner-seta"><svg class="ico"><use href="#ico-seta-dir"/></svg></span>
+    </a>
+
+    <div class="secao" id="tituloListaPls">Proposições</div>
+
+    <div class="toolbar rise" style="--i:4">
+      <div class="search">
+        <svg class="ico"><use href="#ico-busca"/></svg>
+        <input type="text" id="busca" placeholder="Buscar por número, ementa, área ou autoria" aria-label="Buscar proposições">
+      </div>
+      <div class="segmented" id="fCasa" data-value="todos">
+        <button data-v="todos" class="active">Ambas as casas</button>
+        <button data-v="camara">Câmara</button>
+        <button data-v="senado">Senado</button>
+      </div>
+      <div class="segmented" id="fNivel" data-value="todos">
+        <button data-v="todos" class="active">Todos</button>
+        <button data-v="alto">Alto</button>
+        <button data-v="médio">Médio</button>
+        <button data-v="baixo">Baixo</button>
+      </div>
+      <select class="pill" id="fArea" aria-label="Filtrar por área"><option value="todos">Área: todas</option></select>
+      <select class="pill" id="fOrgao" aria-label="Filtrar por órgão"><option value="todos">Órgão: todos</option></select>
+      <select class="pill" id="fSituacao" aria-label="Filtrar por situação"><option value="todos">Situação: todas</option></select>
+      <select class="pill" id="fOrdem" aria-label="Ordenar">
+        <option value="data_desc">Mais recentes</option>
+        <option value="data_asc">Mais antigos</option>
+        <option value="impacto">Maior impacto</option>
+      </select>
+      <button class="clear-btn" id="limpar">Limpar</button>
+    </div>
+
+    <div class="contagem" id="contagem"></div>
+    <div id="corpo" class="stagger"></div>
+    <div class="rodape-lista" id="rodape"></div>

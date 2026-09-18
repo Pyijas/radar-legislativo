@@ -1,16 +1,23 @@
-    <div class="toolbar rise">
+    <div class="page-head rise">
+      <div class="eyebrow">Sua seleção</div>
+      <h2>Proposições salvas</h2>
+      <p>Marcadas por você na lista principal. Ficam gravadas neste navegador —
+      não passam pelo servidor nem pelo banco de dados.</p>
+    </div>
+
+    <div class="toolbar rise" style="--i:1">
       <div class="search">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="busca" placeholder="Buscar nos salvos...">
+        <svg class="ico"><use href="#ico-busca"/></svg>
+        <input type="text" id="busca" placeholder="Buscar nas salvas" aria-label="Buscar nas salvas">
       </div>
-      <select class="pill" id="fOrdem">
+      <select class="pill" id="fOrdem" aria-label="Ordenar">
         <option value="data_desc">Mais recentes</option>
-        <option value="data_asc">Mais antigos</option>
+        <option value="data_asc">Mais antigas</option>
         <option value="impacto">Maior impacto</option>
       </select>
       <button class="clear-btn" id="exportar">Exportar CSV</button>
-      <button class="clear-btn" id="limparTudo">Limpar todos</button>
+      <button class="clear-btn" id="limparTudo">Remover todas</button>
     </div>
 
     <div class="contagem" id="contagem"></div>
-    <div id="corpo"></div>
+    <div id="corpo" class="stagger"></div>

@@ -34,9 +34,20 @@ REPO_URL = "https://github.com/Pyijas/radar-legislativo"
 _FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 _ARQUIVOS_ESTATICOS = [
     "estilos.css", "helpers.js", "item-modal.js",
-    "hub.js", "pais.js", "noticias.js", "salvos.js",
+    "brasil.js", "noticias.js", "salvos.js",
 ]
 _CHART_CDN_TPL = '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>\n'
+
+# --- Escopo do painel -------------------------------------------------------
+# Em 18/09/2026 o usuário pediu pra deixar só o Brasil no ar ("retira tudo dos
+# outros países por enquanto, deixa off"). A coleta e a classificação de EUA,
+# Chile e das agências reguladoras latino-americanas continuam implementadas e
+# funcionando (ver main.py) — o que muda é só o que sai daqui pro dados.js.
+# Pra religar: acrescente os códigos/fontes nos dois conjuntos abaixo — a
+# página do país e a seção da América Latina saíram do frontend, então voltar
+# ao modo multi-país pede também restaurar frontend/hub.* do histórico do git.
+_PAISES_ATIVOS = {"BR"}
+_FONTES_NOTICIA_ATIVAS = {"anvisa", "saude", "ans"}
 
 
 def _parse_lista(valor):
@@ -67,8 +78,6 @@ def _linha_para_dado(l: dict) -> dict:
     return {
         "id": l["chave"],
         "pais": l["pais"],
-        "paisNome": pais_info.get("nome", l["pais"]),
-        "bandeira": pais_info.get("bandeira", ""),
         "casa": l["casa"],
         "casaLabel": casa_label,
         "pl": _rotulo_pl(l),
@@ -90,16 +99,16 @@ def _linha_para_dado(l: dict) -> dict:
 
 
 _FONTE_NOTICIA_LABEL = {
-    "anvisa": "🇧🇷 Anvisa",
-    "saude": "🇧🇷 Ministério da Saúde",
-    "ans": "🇧🇷 ANS",
-    # Agências reguladoras de medicamentos da América Latina (ver main.py,
-    # _FONTES_NOTICIAS) — adicionadas em 11/09/2026.
-    "anmat": "🇦🇷 ANMAT",
-    "digemid": "🇵🇪 DIGEMID",
-    "isp_cl": "🇨🇱 ISP",
-    "minsalud_bo": "🇧🇴 AGEMED / Min. Saúde",
-    "msp_uy": "🇺🇾 MSP",
+    "anvisa": "Anvisa",
+    "saude": "Ministério da Saúde",
+    "ans": "ANS",
+    # Agências reguladoras da América Latina — coletadas e classificadas, mas
+    # fora do painel por ora (ver _FONTES_NOTICIA_ATIVAS).
+    "anmat": "ANMAT · Argentina",
+    "digemid": "DIGEMID · Peru",
+    "isp_cl": "ISP · Chile",
+    "minsalud_bo": "AGEMED · Bolívia",
+    "msp_uy": "MSP · Uruguai",
 }
 
 
@@ -177,114 +186,111 @@ def _script_tag(nome: str, versao: str) -> str:
     return f'<script src="{nome}?v={versao}"></script>\n'
 
 
+def _ico(nome: str) -> str:
+    """Ícone do sprite SVG definido em frontend/_base.html. O painel não usa
+    emoji em lugar nenhum — ver comentário no topo de frontend/estilos.css."""
+    return f'<svg class="ico"><use href="#ico-{nome}"/></svg>'
+
+
+def _link_salvos() -> str:
+    return (
+        '<a href="salvos.html">' + _ico("estrela") +
+        '<span>Salvas</span><span class="contador-salvos">0</span></a>'
+    )
+
+
 def gerar_html(linhas: list, caminho: str | Path, noticias: list | None = None,
                 eventos_agenda: list | None = None) -> Path:
-    """Gera as quatro páginas (hub em `caminho`, pais.html, noticias.html e
-    salvos.html ao lado) a partir das linhas do banco, e copia os arquivos
-    estáticos de frontend/ pra junto delas. Retorna o caminho do hub
-    (index.html), que é o que main.py abre no navegador / publish.py copia
-    como entrada principal do site.
+    """Gera as três páginas do painel — dashboard do Brasil em `caminho`
+    (index.html), noticias.html e salvos.html ao lado — e copia os arquivos
+    estáticos de frontend/ pra junto delas. Retorna o caminho do index, que é
+    o que main.py abre no navegador e publish.py copia como entrada do site.
 
-    `noticias` e `eventos_agenda` (opcionais, adicionados em 11/09/2026) são
-    as linhas de monitoramento institucional (Anvisa/Ministério da Saúde/ANS
-    + agenda do Presidente — ver main.py). Só aparecem em noticias.html,
-    porque essas fontes são todas brasileiras — ver _gerar_noticias_html()."""
+    Só o Brasil entra no painel (ver _PAISES_ATIVOS/_FONTES_NOTICIA_ATIVAS):
+    as linhas de EUA/Chile e das agências latino-americanas são filtradas
+    aqui, não na consulta — assim continuam no banco, prontas pra voltar."""
     caminho = Path(caminho)
     caminho.parent.mkdir(parents=True, exist_ok=True)
     _copiar_estaticos(caminho.parent)
 
-    dados = [_linha_para_dado(l) for l in linhas]
-    dados_noticias = [_linha_noticia_para_dado(n) for n in (noticias or [])]
+    dados = [_linha_para_dado(l) for l in linhas if l["pais"] in _PAISES_ATIVOS]
+    dados_noticias = [
+        _linha_noticia_para_dado(n) for n in (noticias or [])
+        if n["fonte"] in _FONTES_NOTICIA_ATIVAS
+    ]
     dados_agenda = [_linha_evento_para_dado(e) for e in (eventos_agenda or [])]
     dados_json = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/")
     noticias_json = json.dumps(dados_noticias, ensure_ascii=False).replace("</", "<\\/")
     agenda_json = json.dumps(dados_agenda, ensure_ascii=False).replace("</", "<\\/")
-    paises_json = json.dumps(paises.PAISES, ensure_ascii=False).replace("</", "<\\/")
-    em_breve_json = json.dumps(paises.EM_BREVE, ensure_ascii=False).replace("</", "<\\/")
     (caminho.parent / "dados.js").write_text(
         f"window.RADAR_DADOS = {dados_json};\n"
         f"window.RADAR_NOTICIAS = {noticias_json};\n"
-        f"window.RADAR_AGENDA = {agenda_json};\n"
-        f"window.RADAR_PAISES = {paises_json};\n"
-        f"window.RADAR_EM_BREVE = {em_breve_json};\n",
+        f"window.RADAR_AGENDA = {agenda_json};\n",
         encoding="utf-8",
     )
 
     agora = datetime.now()
-    gerado_em = agora.strftime("%d/%m/%Y às %H:%M")
+    gerado_em = agora.strftime("%d/%m/%Y, %H:%M")
     # Cache-busting pros arquivos estáticos (dados.js muda toda geração; os
     # demais raramente, mas custa nada versionar todos junto): sem isso, o
     # navegador pode continuar servindo uma cópia antiga até um hard-refresh.
     versao = agora.strftime("%Y%m%d%H%M%S")
 
-    _gerar_hub_html(caminho, gerado_em, versao)
-    _gerar_pais_html(caminho.parent / "pais.html", gerado_em, versao)
+    _gerar_brasil_html(caminho, gerado_em, versao)
     _gerar_noticias_html(caminho.parent / "noticias.html", gerado_em, versao)
     _gerar_salvos_html(caminho.parent / "salvos.html", versao)
     return caminho
 
 
-def _gerar_hub_html(caminho: Path, gerado_em: str, versao: str) -> Path:
-    topbar_hub = (
-        f'<span class="live"><span class="pulse"></span> Atualizado {gerado_em}</span>'
-        '<a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>'
-    )
-    doc_hub = _pagina(
-        "hub", titulo="Radar Legislativo — Saúde/Farma", subtitulo="Escolha um país",
-        topbar_extra=topbar_hub, script_pagina="hub.js",
-        scripts_antes=_script_tag("helpers.js", versao), versao=versao,
-    )
-    caminho.write_text(doc_hub, encoding="utf-8")
-    return caminho
-
-
-def _gerar_pais_html(caminho: Path, gerado_em: str, versao: str) -> Path:
-    topbar_pais = (
-        f'<span class="live"><span class="pulse"></span> Atualizado {gerado_em}</span>'
-        '<a href="index.html">← todos os países</a>'
-        '<a href="salvos.html" class="salvos-link">★ Salvos (<span class="contador-salvos">0</span>)</a>'
+def _gerar_brasil_html(caminho: Path, gerado_em: str, versao: str) -> Path:
+    """Dashboard de proposições do Brasil — é a página inicial desde
+    18/09/2026 (antes o index era um hub de escolha de país)."""
+    topbar = (
+        f'<span class="live"><span class="pulse"></span>{gerado_em}</span>'
+        '<a href="noticias.html">' + _ico("radar") + '<span>Monitoramento</span></a>'
+        + _link_salvos()
     )
     scripts_antes = (
         _CHART_CDN_TPL
         + _script_tag("helpers.js", versao)
         + _script_tag("item-modal.js", versao)
     )
-    doc_pais = _pagina(
-        "pais", titulo="Radar Legislativo", subtitulo="Saúde &amp; Farma",
-        topbar_extra=topbar_pais, script_pagina="pais.js",
+    doc = _pagina(
+        "brasil", titulo="Radar Legislativo — Saúde e Farma",
+        subtitulo="Brasil", topbar_extra=topbar, script_pagina="brasil.js",
         scripts_antes=scripts_antes, versao=versao,
     )
-    caminho.write_text(doc_pais, encoding="utf-8")
+    caminho.write_text(doc, encoding="utf-8")
     return caminho
 
 
 def _gerar_noticias_html(caminho: Path, gerado_em: str, versao: str) -> Path:
-    """Página própria de monitoramento institucional — notícias da Anvisa/
-    Ministério da Saúde/ANS e agenda pública do Presidente, separada da
-    lista de PLs (ver pais.html) a pedido do usuário em 11/09/2026. Só
-    existe conteúdo do Brasil aqui — todas essas fontes são brasileiras."""
-    topbar_noticias = (
-        f'<span class="live"><span class="pulse"></span> Atualizado {gerado_em}</span>'
-        '<a href="pais.html?p=BR">🇧🇷 PLs do Brasil</a>'
-        '<a href="index.html">← todos os países</a>'
+    """Monitoramento institucional: atos da Anvisa/Ministério da Saúde/ANS e
+    agenda pública das autoridades (Presidência, Saúde, MDIC, Anvisa)."""
+    topbar = (
+        f'<span class="live"><span class="pulse"></span>{gerado_em}</span>'
+        '<a href="index.html">' + _ico("doc") + '<span>Proposições</span></a>'
+        + _link_salvos()
     )
-    doc_noticias = _pagina(
+    doc = _pagina(
         "noticias", titulo="Monitoramento — Radar Legislativo",
-        subtitulo="Brasil · América Latina · Presidência",
-        topbar_extra=topbar_noticias, script_pagina="noticias.js",
+        subtitulo="Atos e agenda", topbar_extra=topbar, script_pagina="noticias.js",
         scripts_antes=_script_tag("helpers.js", versao), versao=versao,
     )
-    caminho.write_text(doc_noticias, encoding="utf-8")
+    caminho.write_text(doc, encoding="utf-8")
     return caminho
 
 
 def _gerar_salvos_html(caminho: Path, versao: str = "0") -> Path:
-    topbar_salvos = '<a href="index.html">← página inicial</a>'
+    topbar = (
+        '<a href="index.html">' + _ico("seta-esq") + '<span>Proposições</span></a>'
+        '<a href="noticias.html">' + _ico("radar") + '<span>Monitoramento</span></a>'
+    )
     scripts_antes = _script_tag("helpers.js", versao) + _script_tag("item-modal.js", versao)
-    doc_salvos = _pagina(
-        "salvos", titulo="PLs Salvos — Radar Legislativo", subtitulo="Seus PLs salvos",
-        topbar_extra=topbar_salvos, script_pagina="salvos.js",
+    doc = _pagina(
+        "salvos", titulo="Salvas — Radar Legislativo", subtitulo="Sua seleção",
+        topbar_extra=topbar, script_pagina="salvos.js",
         scripts_antes=scripts_antes, versao=versao,
     )
-    caminho.write_text(doc_salvos, encoding="utf-8")
+    caminho.write_text(doc, encoding="utf-8")
     return caminho
