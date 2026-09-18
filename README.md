@@ -193,12 +193,15 @@ publicadas juntas por `src/publish.py`:
   sem abrir o card. Só a página do Brasil mostra o banner de monitoramento
   institucional (ver abaixo).
 - **`noticias.html`** — monitoramento institucional, em três seções:
-  notícias do Brasil (Anvisa/Ministério da Saúde/ANS), agenda pública do
-  Presidente, e **mudanças regulatórias das agências de medicamentos da
-  América Latina** (ver seção própria abaixo) — ver `main.py`
-  (`_coletar_e_classificar_noticias`/`_coletar_e_classificar_agenda`) e os
-  clientes `src/anvisa_news_client.py`, `src/saude_news_client.py`,
-  `src/ans_news_client.py`, `src/agenda_presidente_client.py`.
+  notícias do Brasil (Anvisa/Ministério da Saúde/ANS), agenda pública de
+  autoridades (Presidente + Ministro da Saúde/Ministro do MDIC/
+  diretor-presidente da Anvisa — ver abaixo), e **mudanças regulatórias das
+  agências de medicamentos da América Latina** (ver seção própria abaixo)
+  — ver `main.py` (`_coletar_e_classificar_noticias`/
+  `_coletar_e_classificar_agenda`) e os clientes
+  `src/anvisa_news_client.py`, `src/saude_news_client.py`,
+  `src/ans_news_client.py`, `src/agenda_presidente_client.py`,
+  `src/eagendas_client.py`.
 - **`salvos.html`** — só os PLs marcados, de qualquer país/casa, com os
   mesmos busca/ordenação, mais exportação pra CSV e "Limpar todos".
 
@@ -244,6 +247,35 @@ buscam o intermediário sozinhos, mas o verificador padrão do Python não.
 Resolvido com a lib `truststore` (troca o verificador pelo nativo do SO,
 injetado no topo de `main.py`) — mais correto, não uma flexibilização de
 segurança.
+
+## Agenda de autoridades — e-Agendas/CGU
+
+Adicionado em 18/09/2026 a pedido do usuário: além da agenda do Presidente
+(scraping público do gov.br/planalto, sem chave), o Radar também cobre o
+**Ministro da Saúde**, o **Ministro do MDIC** e o **diretor-presidente da
+Anvisa**, via a API oficial do e-Agendas (CGU) —
+[`src/eagendas_client.py`](src/eagendas_client.py). Essa fonte é a que traz
+os sinais mais diretos de agenda estratégica: reuniões nomeadas com
+farmacêuticas (concorrentes inclusive), visitas a fábricas, eventos
+setoriais.
+
+**Precisa de `EAGENDAS_TOKEN`** no `.env` — diferente das outras chaves do
+projeto, esse é um **token pessoal**, vinculado à conta gov.br de quem
+gerou (não é um cadastro de app tipo Congress.gov). Gere em
+[eagendas.cgu.gov.br](https://eagendas.cgu.gov.br) depois de logar: menu do
+perfil → "Meus tokens" → gerar novo (só aparece uma vez). Sem essa
+variável, `eagendas_client.listar_novas()` simplesmente devolve lista
+vazia, sem erro — o resto do Radar continua funcionando normalmente.
+
+A API identifica cada autoridade por um `apo_id` (a pessoa) vinculado a um
+`cargo_comissao_id` (o cargo em si). Os três `apo_id` usados hoje
+(`src/eagendas_client._AUTORIDADES`) foram resolvidos manualmente em
+18/09/2026 consultando `GET /orgaos?sigla=MS|MDIC|ANVISA` e depois
+`GET /agentes-publicos-obrigados?orgao_id=X&situacao=ativo` procurando o
+cargo "MINISTRO" ou "DIRETOR-PRESIDENTE". **Se a pessoa no cargo trocar**,
+o `apo_id` antigo para de aparecer como `situacao=ativo` — repita essa
+consulta pra achar o novo e atualize o dicionário (a docstring do módulo
+tem o passo a passo).
 
 ## Limitações atuais / próximos passos
 

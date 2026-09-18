@@ -6,13 +6,17 @@ Senado Federal) — Congresso dos EUA e Congresso do Chile continuam
 implementados e disponíveis via `--fontes`, mas não rodam por padrão desde
 11/09/2026 (a pedido do usuário, pra focar a coleta automática em Brasil).
 Além dos PLs, também coleta e classifica notícias da Anvisa, do Ministério
-da Saúde e da ANS, a agenda pública do Presidente, e mudanças regulatórias
-das agências de medicamentos da América Latina (ANMAT/Argentina,
-DIGEMID/Peru, ISP/Chile, Ministério da Saúde-AGEMED/Bolívia, MSP/Uruguai —
-adicionado em 11/09/2026; México/Equador/Colômbia/Paraguai ficaram de fora
-por ora, ver _FONTES_NOTICIAS abaixo) — ver "Monitoramento institucional"
-abaixo. Cada item (PL, notícia ou evento de agenda) é classificado por
-impacto em saúde/farma em duas camadas:
+da Saúde e da ANS; mudanças regulatórias das agências de medicamentos da
+América Latina (ANMAT/Argentina, DIGEMID/Peru, ISP/Chile, Ministério da
+Saúde-AGEMED/Bolívia, MSP/Uruguai — adicionado em 11/09/2026; México/
+Equador/Colômbia/Paraguai ficaram de fora por ora, ver _FONTES_NOTICIAS
+abaixo); e a agenda pública do Presidente (scraping do gov.br/planalto,
+sem token) mais a do Ministro da Saúde, do Ministro do MDIC e do
+diretor-presidente da Anvisa (API oficial do e-Agendas/CGU, precisa de
+EAGENDAS_TOKEN no .env — ver src/eagendas_client.py; adicionado em
+18/09/2026) — ver "Monitoramento institucional" abaixo. Cada item (PL,
+notícia ou evento de agenda) é classificado por impacto em saúde/farma em
+duas camadas:
 
   1. Heurística por palavras-chave (PT ou EN) — sempre roda, 100% gratuita,
      determinística.
@@ -58,7 +62,7 @@ from rich.table import Table
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import (
-    agenda_presidente_client, anmat_client, ans_news_client, anvisa_news_client,
+    agenda_presidente_client, anmat_client, ans_news_client, anvisa_news_client, eagendas_client,
     camara_client, chile_client, congress_client, digemid_client, heuristic_classify,
     isp_chile_client, minsalud_bolivia_client, msp_uruguay_client, paises, pdf_extract,
     publish, report, saude_news_client, senado_client, storage,
@@ -339,14 +343,20 @@ def _coletar_e_classificar_noticias(dias: int, tem_ia: bool) -> None:
 
 _FONTES_AGENDA = {
     "presidente": agenda_presidente_client,
+    # Ministro da Saúde + Ministro do MDIC + Diretor-Presidente da Anvisa,
+    # via API oficial do e-Agendas/CGU — pedido do usuário em 18/09/2026.
+    # Precisa de EAGENDAS_TOKEN no .env (token pessoal); sem ele,
+    # eagendas_client.listar_novas() só devolve lista vazia, sem erro (ver
+    # docstring de src/eagendas_client.py).
+    "eagendas": eagendas_client,
 }
 
 
 def _coletar_e_classificar_agenda(dias: int, tem_ia: bool) -> None:
-    """Coleta a agenda pública de autoridades (por ora só o Presidente — ver
-    limitação sobre Vice-Presidência/Ministro da Saúde/diretor da Anvisa no
-    docstring de src/agenda_presidente_client.py) e classifica com o mesmo
-    mecanismo heurística+IA dos PLs."""
+    """Coleta a agenda pública de autoridades — Presidente (scraping do
+    gov.br/planalto, sem token) e Ministro da Saúde/MDIC/diretor da Anvisa
+    (API do e-Agendas, com token — ver src/eagendas_client.py) — e
+    classifica com o mesmo mecanismo heurística+IA dos PLs."""
     for nome, cliente in _FONTES_AGENDA.items():
         try:
             eventos = cliente.listar_novas(dias)
