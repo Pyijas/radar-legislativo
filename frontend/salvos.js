@@ -42,6 +42,7 @@
     el.corpo.innerHTML = itens.length
       ? itens.map((d, i) => RadarModal.itemHtml(d, Math.min(i, 12))).join('')
       : '<div class="vazio">Nenhuma proposição salva ainda.<br>Na <a href="index.html">lista principal</a>, use a estrela de cada registro para guardar aqui.</div>';
+    marcarParaTransicao(el.corpo, 24);
   }
 
   function render() { transicionar(pintar); }

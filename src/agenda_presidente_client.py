@@ -91,6 +91,7 @@ def _compromissos_do_dia(data: dt.date) -> list[dict]:
             "id_externo": f"presidente-{data.isoformat()}-{i}",
             "autoridade": "Presidente da República",
             "cargo": "Presidente da República",
+            "orgao": "Presidência da República",
             "data": data.isoformat(),
             "horario": m_horario.group(1).strip() if m_horario else None,
             "titulo": titulo,

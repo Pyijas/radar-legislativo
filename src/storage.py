@@ -100,6 +100,13 @@ def _migrar(conn: sqlite3.Connection) -> None:
         if coluna not in colunas:
             conn.execute(f"ALTER TABLE proposicoes ADD COLUMN {coluna} {tipo}")
 
+    # eventos_agenda ganhou `orgao` em 27/09/2026, quando a agenda passou a
+    # cobrir autoridades de vários órgãos (antes eram só Presidência, Saúde,
+    # MDIC e Anvisa, e o órgão dava pra deduzir do cargo).
+    colunas_agenda = {row[1] for row in conn.execute("PRAGMA table_info(eventos_agenda)")}
+    if colunas_agenda and "orgao" not in colunas_agenda:
+        conn.execute("ALTER TABLE eventos_agenda ADD COLUMN orgao TEXT")
+
 
 _SCHEMA_NOTICIAS = """
 CREATE TABLE IF NOT EXISTS noticias (
@@ -128,6 +135,7 @@ CREATE TABLE IF NOT EXISTS eventos_agenda (
     chave TEXT PRIMARY KEY,
     autoridade TEXT NOT NULL,
     cargo TEXT,
+    orgao TEXT,
     id_externo TEXT NOT NULL,
     data TEXT,
     horario TEXT,
@@ -219,7 +227,7 @@ def salvar_evento_agenda(registro: dict) -> None:
     registro = dict(registro)
     registro["chave"] = _chave_agenda(registro["autoridade"], registro["id_externo"])
     campos = [
-        "chave", "autoridade", "cargo", "id_externo", "data", "horario", "titulo",
+        "chave", "autoridade", "cargo", "orgao", "id_externo", "data", "horario", "titulo",
         "local", "url_origem", "ia_disponivel", "fonte_classificacao", "relevante",
         "justificativa_relevancia", "resumo_ia", "areas_impactadas", "tipo_impacto",
         "nivel_impacto",

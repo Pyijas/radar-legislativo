@@ -139,6 +139,7 @@ def _linha_evento_para_dado(e: dict) -> dict:
         "id": e["chave"],
         "autoridade": e["autoridade"] or "",
         "cargo": e["cargo"] or "",
+        "orgao": (e["orgao"] if "orgao" in e.keys() else "") or "",
         "titulo": e["titulo"] or "",
         "local": e["local"] or "",
         "resumo": e["resumo_ia"] or e["titulo"] or "",

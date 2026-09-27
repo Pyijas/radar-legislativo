@@ -30,7 +30,7 @@
   });
 
   function cardNoticia(n, i) {
-    return '<article class="mon-card" style="--i:' + i + '">' +
+    return '<article class="mon-card" data-vt="' + esc(n.id) + '" style="--i:' + i + '">' +
       '<div class="mon-card-topo">' +
         '<span class="orgao">' + esc(n.fonteLabel) + '</span>' +
         '<span class="badge ' + (n.nivel || 'sem') + '">' + esc(n.nivel || 'sem leitura') + '</span>' +
@@ -65,6 +65,7 @@
     el.grid.innerHTML = itens.length
       ? itens.map((n, i) => cardNoticia(n, Math.min(i, 12))).join('')
       : '<div class="vazio">Nenhuma publicação com esses filtros.<br>Use <strong>Limpar</strong> para voltar à lista completa.</div>';
+    marcarParaTransicao(el.grid, 24);
   }
 
   function render() { transicionar(pintar); }

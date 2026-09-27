@@ -250,14 +250,31 @@ segurança.
 
 ## Agenda de autoridades — e-Agendas/CGU
 
-Adicionado em 18/09/2026 a pedido do usuário: além da agenda do Presidente
-(scraping público do gov.br/planalto, sem chave), o Radar também cobre o
-**Ministro da Saúde**, o **Ministro do MDIC** e o **diretor-presidente da
-Anvisa**, via a API oficial do e-Agendas (CGU) —
-[`src/eagendas_client.py`](src/eagendas_client.py). Essa fonte é a que traz
-os sinais mais diretos de agenda estratégica: reuniões nomeadas com
-farmacêuticas (concorrentes inclusive), visitas a fábricas, eventos
-setoriais.
+Além da agenda do Presidente (scraping público do gov.br/planalto, sem
+chave), o Radar cobre **16 autoridades de 7 órgãos** via API oficial do
+e-Agendas (CGU) — [`src/eagendas_client.py`](src/eagendas_client.py). Essa
+é a fonte que traz os sinais mais diretos de agenda estratégica: reuniões
+nomeadas com farmacêuticas (concorrentes inclusive), visitas a fábricas e
+eventos setoriais.
+
+O critério de quem entra: cargos que decidem ou instruem as alavancas do
+setor — não a cúpula por hierarquia. Em ordem de "temperatura" observada na
+primeira semana, os mais produtivos foram o **Diretor de Assistência
+Farmacêutica e Insumos Estratégicos** (compras do SUS), a **Secretária de
+Ciência, Tecnologia e Inovação em Saúde** (política industrial) e o
+**Diretor do Complexo Econômico-Industrial da Saúde** — bem acima dos
+ministros em densidade de reunião com empresa nomeada.
+
+| Órgão | Cargos acompanhados |
+|---|---|
+| Presidência | Presidente da República |
+| Ministério da Saúde | Ministro; Secretário-Executivo; Secretária de Ciência, Tecnologia e Inovação em Saúde; Diretor do Complexo Econômico-Industrial da Saúde; Diretor de Assistência Farmacêutica e Insumos Estratégicos; Diretora de Gestão e Incorporação de Tecnologias em Saúde (Conitec); Diretor do Programa Nacional de Imunizações; Secretário de Atenção Especializada à Saúde |
+| Anvisa | Diretor-Presidente e dois diretores do colegiado |
+| ANS | Diretor-Presidente |
+| MDIC | Ministro |
+| INPI | Diretor de Patentes |
+| Fiocruz | Vice-Presidente de Produção e Inovação |
+| Hemobrás | Diretora-Presidente |
 
 **Precisa de `EAGENDAS_TOKEN`** no `.env` — diferente das outras chaves do
 projeto, esse é um **token pessoal**, vinculado à conta gov.br de quem

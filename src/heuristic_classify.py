@@ -114,6 +114,30 @@ _DICIONARIOS = {
 }
 
 
+# Empresas e entidades do setor farmacêutico citadas nominalmente.
+#
+# Serve principalmente à agenda das autoridades (src/eagendas_client.py), onde
+# o compromisso costuma ser só o nome de quem foi recebido — "Presidente da
+# Pfizer Brasil", "Reunião com a Blau Farmacêutica". Nesses casos os termos
+# genéricos acima não pegam nada, mas o encontro é exatamente o sinal que
+# interessa: quem está conversando com o governo sobre o quê. Encontrar um
+# nome daqui basta para marcar alto impacto.
+_ENTIDADES_FARMA = (
+    r"eurofarma|\bEMS\b|novamed|hypera|neo ?qu[íi]mica|ach[ée]\b|cristália|cristalia|"
+    r"libbs|blau|uni[ãa]o qu[íi]mica|prati[- ]?donaduzzi|biolab|apsen|mantecorp|"
+    r"cimed|medley|\bgerm[ée]d\b|legrand|zodiac|farmoqu[íi]mica|\bsupera\b|vitamedic|"
+    r"ourofino|teuto|nova ?qu[íi]mica|hal[ée]x|eurofarma|bergamo|"
+    r"pfizer|novartis|sandoz|roche|astrazeneca|astra ?zeneca|novo ?nordisk|"
+    r"sanofi|\bgsk\b|glaxo|johnson|janssen|\bmsd\b|merck|abbott|abbvie|bayer|"
+    r"takeda|amgen|biogen|\blilly\b|boehringer|servier|\bteva\b|dr\.? ?reddy|"
+    r"zydus|viatris|organon|moderna|biontech|astellas|daiichi|\bucb\b|alexion|"
+    r"cellera|\bcsl\b|behring|fresenius|bionovis|\bbiomm\b|orygen|"
+    r"hemobr[áa]s|butantan|bio-?manguinhos|farmanguinhos|fiocruz|"
+    r"interfarma|sindusfarma|alanac|pr[óo] ?gen[ée]ricos|abrafarma|abiquifi|"
+    r"abimip|grupo farmabrasil|farmabrasil|abradimex|abcfarma"
+)
+
+
 def classificar(ementa: str, texto_inteiro_teor: str | None, idioma: str = "pt") -> dict:
     """Classificação por palavras-chave. Determinística, gratuita, nunca levanta erro."""
     areas_dict, tipos_dict = _DICIONARIOS.get(idioma, _DICIONARIOS["pt"])
@@ -122,20 +146,32 @@ def classificar(ementa: str, texto_inteiro_teor: str | None, idioma: str = "pt")
     areas = sorted({rotulo for padrao, rotulo in areas_dict.items() if re.search(padrao, base, re.IGNORECASE)})
     tipos = sorted({rotulo for padrao, rotulo in tipos_dict.items() if re.search(padrao, base, re.IGNORECASE)})
 
+    entidade = re.search(_ENTIDADES_FARMA, base, re.IGNORECASE) if idioma == "pt" else None
+    if entidade and "Indústria farmacêutica" not in areas:
+        areas.append("Indústria farmacêutica")
+        areas.sort()
+
     relevante = len(areas) > 0
-    if len(areas) >= 3:
+    if entidade or len(areas) >= 3:
         nivel = "alto"
     elif len(areas) == 2:
         nivel = "médio"
     else:
         nivel = "baixo"
 
+    if entidade:
+        justificativa = (
+            f'Cita "{entidade.group(0)}", empresa ou entidade do setor farmacêutico '
+            f"(detectado por palavra-chave, sem IA)."
+        )
+    elif relevante:
+        justificativa = f"{len(areas)} termo(s) de saúde/farma detectado(s) por palavra-chave (sem IA)."
+    else:
+        justificativa = "Nenhum termo de saúde/farma detectado por palavra-chave (sem IA)."
+
     return {
         "relevante": relevante,
-        "justificativa_relevancia": (
-            f"{len(areas)} termo(s) de saúde/farma detectado(s) por palavra-chave (sem IA)."
-            if relevante else "Nenhum termo de saúde/farma detectado por palavra-chave (sem IA)."
-        ),
+        "justificativa_relevancia": justificativa,
         "resumo": None,  # sem IA não há como resumir com confiança — o relatório cai de volta para a ementa
         "areas_impactadas": areas,
         "tipo_impacto": tipos or ["outro"],

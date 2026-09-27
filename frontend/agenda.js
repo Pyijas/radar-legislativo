@@ -58,12 +58,35 @@
   const primeiraData = datasOrdenadas[0];
   const ultimaData = datasOrdenadas[datasOrdenadas.length - 1];
 
-  const autoridades = Array.from(new Set(EVENTOS.map(e => e.autoridade).filter(Boolean)))
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  for (const a of autoridades) {
-    const opt = document.createElement('option');
-    opt.value = a; opt.textContent = a;
-    el.fAutoridade.appendChild(opt);
+  // Quem é quem: o nome sozinho não diz nada a quem não acompanha o governo,
+  // então a opção mostra "Nome — Cargo" e as pessoas ficam agrupadas por
+  // órgão. Cada autoridade entra uma vez só, com quantos compromissos tem.
+  const porAutoridade = new Map();
+  for (const e of EVENTOS) {
+    if (!e.autoridade) continue;
+    if (!porAutoridade.has(e.autoridade)) {
+      porAutoridade.set(e.autoridade, { cargo: e.cargo || '', orgao: e.orgao || 'Outros', n: 0 });
+    }
+    porAutoridade.get(e.autoridade).n++;
+  }
+  const porOrgao = new Map();
+  for (const [nome, info] of porAutoridade) {
+    if (!porOrgao.has(info.orgao)) porOrgao.set(info.orgao, []);
+    porOrgao.get(info.orgao).push({ nome, ...info });
+  }
+  const ordemOrgaos = Array.from(porOrgao.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  for (const orgao of ordemOrgaos) {
+    const grupo = document.createElement('optgroup');
+    grupo.label = orgao;
+    porOrgao.get(orgao)
+      .sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, 'pt-BR'))
+      .forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.nome;
+        opt.textContent = (p.cargo && p.cargo !== p.nome) ? `${p.nome} — ${p.cargo}` : p.nome;
+        grupo.appendChild(opt);
+      });
+    el.fAutoridade.appendChild(grupo);
   }
 
   // --- estado ----------------------------------------------------------
@@ -167,14 +190,15 @@
     render();
   });
 
-  el.calAnterior.addEventListener('click', () => {
-    mesVisivel = new Date(mesVisivel.getFullYear(), mesVisivel.getMonth() - 1, 1);
-    renderCalendario();
-  });
-  el.calProximo.addEventListener('click', () => {
-    mesVisivel = new Date(mesVisivel.getFullYear(), mesVisivel.getMonth() + 1, 1);
-    renderCalendario();
-  });
+  function trocarMes(passo, direcao) {
+    document.documentElement.dataset.cal = direcao;
+    transicionar(() => {
+      mesVisivel = new Date(mesVisivel.getFullYear(), mesVisivel.getMonth() + passo, 1);
+      renderCalendario();
+    });
+  }
+  el.calAnterior.addEventListener('click', () => trocarMes(-1, 'anterior'));
+  el.calProximo.addEventListener('click', () => trocarMes(1, 'proximo'));
 
   function marcarAtalho(qual) {
     document.querySelectorAll('.cal-atalhos button').forEach(b => {
@@ -221,9 +245,10 @@
   function compromissoHtml(ev) {
     const hora = formatarHora(ev.horario);
     const tituloTexto = esc(ev.titulo);
-    return '<article class="compromisso">' +
+    return '<article class="compromisso" data-vt="' + esc(ev.id) + '">' +
       '<span class="hora' + (hora ? '' : ' sem') + '">' + (hora || '—') + '</span>' +
-      '<span class="quem">' + esc(ev.autoridade) + '</span>' +
+      '<span class="quem">' + esc(ev.autoridade) +
+        (ev.cargo && ev.cargo !== ev.autoridade ? '<span class="cargo">' + esc(ev.cargo) + '</span>' : '') + '</span>' +
       '<span class="badge ' + (ev.nivel || 'sem') + '">' + esc(ev.nivel || 'sem leitura') + '</span>' +
       (ev.url
         ? '<a class="titulo" href="' + esc(ev.url) + '" target="_blank" rel="noopener">' + tituloTexto + '</a>'
@@ -273,6 +298,8 @@
         restantes + (restantes === 1 ? ' dia' : ' dias') + '</button></div>';
     }
     el.lista.innerHTML = html;
+
+    document.querySelectorAll('.dia-bloco').forEach(b => marcarParaTransicao(b, 24));
 
     const maisBtn = document.getElementById('maisDias');
     if (maisBtn) maisBtn.addEventListener('click', () => { diasMostrados += MAX_DIAS; pintar(); });

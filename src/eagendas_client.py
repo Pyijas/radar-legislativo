@@ -39,12 +39,75 @@ BASE_URL = "https://eagendas.cgu.gov.br/api/v2"
 _TIMEOUT = 30
 _URL_PUBLICA = "https://eagendas.cgu.gov.br/"
 
-# Resolvido manualmente em 18/09/2026 (ver docstring do módulo pra como
-# atualizar se a pessoa no cargo mudar).
+# Resolvido manualmente em 18/09/2026 e ampliado em 27/09/2026 (ver docstring
+# do módulo pra como atualizar se a pessoa no cargo mudar).
+#
+# Critério da seleção: cargos que decidem ou instruem as alavancas do setor
+# farmacêutico — registro sanitário (Anvisa), incorporação e compra pelo SUS
+# (Conitec/DAF/PNI), política industrial e PDPs (SECTICS/CEIS/MDIC), patente
+# (INPI), cobertura por planos (ANS) e produção pública (Fiocruz/Hemobrás).
+# Ficaram de fora cargos de gabinete, assessoria e áreas sem interface com
+# medicamentos (atenção primária, saúde indígena, trabalho e educação).
 _AUTORIDADES = {
-    "ministro_saude": {"apo_id": 40732, "autoridade": "Alexandre Padilha", "cargo": "Ministro de Estado da Saúde"},
-    "ministro_mdic": {"apo_id": 48764, "autoridade": "Marcio Elias Rosa", "cargo": "Ministro do Desenvolvimento, Indústria, Comércio e Serviços"},
-    "diretor_anvisa": {"apo_id": 44867, "autoridade": "Leandro Safatle", "cargo": "Diretor-Presidente da Anvisa"},
+    # --- Ministério da Saúde -------------------------------------------
+    "ministro_saude": {
+        "apo_id": 40732, "autoridade": "Alexandre Padilha",
+        "cargo": "Ministro da Saúde", "orgao": "Ministério da Saúde"},
+    "secex_saude": {
+        "apo_id": 40774, "autoridade": "Adriano Massuda",
+        "cargo": "Secretário-Executivo do Ministério da Saúde", "orgao": "Ministério da Saúde"},
+    "sectics": {
+        "apo_id": 41471, "autoridade": "Fernanda De Negri",
+        "cargo": "Secretária de Ciência, Tecnologia e Inovação em Saúde",
+        "orgao": "Ministério da Saúde"},
+    "ceis": {
+        "apo_id": 43171, "autoridade": "Igor Ferreira Bueno",
+        "cargo": "Diretor do Complexo Econômico-Industrial da Saúde",
+        "orgao": "Ministério da Saúde"},
+    "assistencia_farmaceutica": {
+        "apo_id": 47777, "autoridade": "Nelio Cezar de Aquino",
+        "cargo": "Diretor de Assistência Farmacêutica e Insumos Estratégicos",
+        "orgao": "Ministério da Saúde"},
+    "conitec": {
+        "apo_id": 17362, "autoridade": "Luciene Bonan",
+        "cargo": "Diretora de Gestão e Incorporação de Tecnologias em Saúde",
+        "orgao": "Ministério da Saúde"},
+    "imunizacoes": {
+        "apo_id": 41755, "autoridade": "Eder Gatti Fernandes",
+        "cargo": "Diretor do Programa Nacional de Imunizações",
+        "orgao": "Ministério da Saúde"},
+    "atencao_especializada": {
+        "apo_id": 40929, "autoridade": "Mozart Sales",
+        "cargo": "Secretário de Atenção Especializada à Saúde",
+        "orgao": "Ministério da Saúde"},
+    # --- Anvisa ---------------------------------------------------------
+    "diretor_presidente_anvisa": {
+        "apo_id": 44867, "autoridade": "Leandro Safatle",
+        "cargo": "Diretor-Presidente da Anvisa", "orgao": "Anvisa"},
+    "diretor_anvisa_dm": {
+        "apo_id": 2097, "autoridade": "Daniel Meirelles",
+        "cargo": "Diretor da Anvisa", "orgao": "Anvisa"},
+    "diretora_anvisa_dmc": {
+        "apo_id": 44833, "autoridade": "Daniela Marreco",
+        "cargo": "Diretora da Anvisa", "orgao": "Anvisa"},
+    # --- Demais órgãos ---------------------------------------------------
+    "ministro_mdic": {
+        "apo_id": 48764, "autoridade": "Marcio Elias Rosa",
+        "cargo": "Ministro do Desenvolvimento, Indústria e Comércio",
+        "orgao": "MDIC"},
+    "diretor_presidente_ans": {
+        "apo_id": 50268, "autoridade": "Wadih Damous",
+        "cargo": "Diretor-Presidente da ANS", "orgao": "ANS"},
+    "patentes_inpi": {
+        "apo_id": 15095, "autoridade": "Alexandre Dantas Rodrigues",
+        "cargo": "Diretor de Patentes do INPI", "orgao": "INPI"},
+    "producao_fiocruz": {
+        "apo_id": 46128, "autoridade": "Priscila Ferraz Soares",
+        "cargo": "Vice-Presidente de Produção e Inovação da Fiocruz",
+        "orgao": "Fiocruz"},
+    "hemobras": {
+        "apo_id": 33031, "autoridade": "Ana Paula do Rego Menezes",
+        "cargo": "Diretora-Presidente da Hemobrás", "orgao": "Hemobrás"},
 }
 
 
@@ -91,6 +154,7 @@ def listar_novas(dias: int) -> list[dict]:
             registros.append({
                 "autoridade": info["autoridade"],
                 "cargo": info["cargo"],
+                "orgao": info["orgao"],
                 "id_externo": str(c.get("id")),
                 "data": _iso(c.get("data_inicio")),
                 "horario": c.get("hora_inicio") or "",
