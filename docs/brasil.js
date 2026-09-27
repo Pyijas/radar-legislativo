@@ -228,6 +228,8 @@
       ? visiveis.map((d, i) => RadarModal.itemHtml(d, Math.min(i % PAGE_SIZE, 12))).join('')
       : '<div class="vazio">Nenhuma proposição corresponde a esses filtros.<br>Ajuste a busca ou use <strong>Limpar</strong> para voltar à lista completa.</div>';
 
+    marcarParaTransicao(el.corpo, PAGE_SIZE);
+
     const restantes = itens.length - visiveis.length;
     el.rodape.innerHTML = restantes > 0
       ? `<button id="maisBtn">Carregar mais ${restantes.toLocaleString('pt-BR')}</button>` : '';

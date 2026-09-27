@@ -1188,6 +1188,14 @@ body.modal-open { overflow: hidden; }
   color: var(--ink-2);
   margin-bottom: 0.15rem;
 }
+.compromisso .quem .cargo {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.63rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-3);
+}
 .compromisso .badge { grid-column: 3; grid-row: 1; align-self: start; }
 .compromisso .titulo {
   grid-column: 2;
@@ -1234,11 +1242,100 @@ a.titulo:hover { border-bottom-color: var(--rule-strong); }
   animation-delay: calc(var(--i, 0) * 60ms);
 }
 
-/* itens de lista entram em cascata curta, sem segurar a leitura */
-.stagger > * {
-  animation: reveal .5s var(--ease) both;
-  animation-delay: calc(var(--i, 0) * 26ms);
+/* Entrada dos registros presa ao scroll: cada um aparece quando entra no
+   campo de visão, em vez de todos dispararem no load e a parte de baixo da
+   lista já chegar "usada". Onde não houver scroll-driven animation, o
+   fallback do bloco seguinte devolve a cascata por índice. */
+@supports (animation-timeline: view()) {
+  .stagger > * {
+    animation: reveal .5s var(--ease) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 42%;
+  }
 }
+@supports not (animation-timeline: view()) {
+  .stagger > * {
+    animation: reveal .5s var(--ease) both;
+    animation-delay: calc(var(--i, 0) * 26ms);
+  }
+}
+
+/* --------------------------------------------------- view transitions -- */
+
+/* Navegação entre as páginas do painel sem o flash branco de recarga. */
+@view-transition { navigation: auto; }
+
+/* Elementos que existem em todas as páginas ficam parados durante a
+   navegação, em vez de participar do crossfade — é o que dá a sensação de
+   "mesma aplicação" em vez de "outro documento". */
+.topbar { view-transition-name: topbar; }
+footer { view-transition-name: rodape; }
+
+::view-transition-group(root) { animation-duration: .34s; }
+::view-transition-old(root) {
+  animation: vt-sai .2s cubic-bezier(.4, 0, 1, 1) both;
+}
+::view-transition-new(root) {
+  animation: vt-entra .3s cubic-bezier(0, 0, .2, 1) 60ms both;
+}
+@keyframes vt-sai {
+  to { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes vt-entra {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+/* A topbar não deve deslizar junto com o corpo. */
+::view-transition-old(topbar),
+::view-transition-new(topbar),
+::view-transition-old(rodape),
+::view-transition-new(rodape) { animation: none; opacity: 1; }
+
+/* Registros que sobrevivem a um filtro deslizam para a posição nova em vez
+   de piscar; quem entra e quem sai faz um fade curto no lugar. O nome único
+   de cada um é atribuído no JS (view-transition-name precisa ser único e
+   custa caro, então só os visíveis recebem); a classe abaixo agrupa todos
+   sob a mesma animação. Onde view-transition-class não existir, cai no
+   crossfade padrão do grupo — que já é melhor que o pisca-pisca. */
+.item, .compromisso, .mon-card { view-transition-class: registro; }
+::view-transition-group(*.registro) { animation-duration: .36s; animation-timing-function: var(--ease); }
+::view-transition-old(*.registro) { animation: vt-item-sai .18s ease-out both; }
+::view-transition-new(*.registro) { animation: vt-item-entra .26s var(--ease) both; }
+@keyframes vt-item-sai { to { opacity: 0; } }
+@keyframes vt-item-entra { from { opacity: 0; } }
+
+/* Troca de mês no calendário: sai para um lado, entra pelo outro. */
+.cal-grid { view-transition-name: cal-grid; }
+html[data-cal="proximo"]::view-transition-old(cal-grid) { animation: cal-sai-esq .26s var(--ease) both; }
+html[data-cal="proximo"]::view-transition-new(cal-grid) { animation: cal-entra-dir .3s var(--ease) both; }
+html[data-cal="anterior"]::view-transition-old(cal-grid) { animation: cal-sai-dir .26s var(--ease) both; }
+html[data-cal="anterior"]::view-transition-new(cal-grid) { animation: cal-entra-esq .3s var(--ease) both; }
+@keyframes cal-sai-esq { to { opacity: 0; transform: translateX(-14px); } }
+@keyframes cal-entra-dir { from { opacity: 0; transform: translateX(14px); } }
+@keyframes cal-sai-dir { to { opacity: 0; transform: translateX(14px); } }
+@keyframes cal-entra-esq { from { opacity: 0; transform: translateX(-14px); } }
+
+/* ------------------------------------------------- micro-interações -- */
+
+/* A estrela reage ao clique: some a diferença entre "cliquei" e "salvou". */
+@keyframes estrela-salva {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.32) rotate(-8deg); }
+  100% { transform: scale(1); }
+}
+.star-btn.acabou-de-salvar .ico { animation: estrela-salva .42s var(--ease); }
+
+.clear-btn:active,
+.rodape-lista button:active,
+.cal-atalhos button:active { transform: translateY(1px); }
+
+.topbar-right a,
+.brand { -webkit-tap-highlight-color: transparent; }
+
+/* O indicador do grupo de botões corre entre as opções em vez de sumir de
+   um lado e nascer no outro. */
+.segmented button.active::after { view-transition-name: seg-indicador; }
+::view-transition-group(seg-indicador) { animation-duration: .3s; animation-timing-function: var(--ease); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -1247,6 +1344,10 @@ a.titulo:hover { border-bottom-color: var(--rule-strong); }
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
   }
+  @view-transition { navigation: none; }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
 }
 
 /* ---------------------------------------------------------- responsivo -- */

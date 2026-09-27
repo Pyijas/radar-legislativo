@@ -88,6 +88,26 @@ function renderKpis(container, itens, rotulos) {
   });
 }
 
+// Nome de transição por registro, para que os itens que sobrevivem a um
+// filtro deslizem até a posição nova em vez de piscar. O nome tem que ser um
+// identificador CSS válido e único na página — o id vem do banco no formato
+// "BR:camara:2646662", então vira "vt-BR-camara-2646662".
+function nomeTransicao(id) {
+  return 'vt-' + String(id).replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+// Aplica os nomes só nos elementos realmente visíveis e limpa o resto:
+// manter centenas de view-transition-name vivos deixa a transição pesada.
+function marcarParaTransicao(container, limite) {
+  if (PREFERE_MENOS_MOVIMENTO || !document.startViewTransition) return;
+  const filhos = container.children;
+  for (let i = 0; i < filhos.length; i++) {
+    const el = filhos[i];
+    const id = el.dataset.vt || el.dataset.id;
+    el.style.viewTransitionName = (id && i < (limite || 24)) ? nomeTransicao(id) : '';
+  }
+}
+
 // Troca de estado (filtro, seleção de data) com crossfade nativo.
 // Quando o usuário clica rápido, uma transição interrompe a anterior e a
 // API rejeita as promises da abortada — sem estes catch isso vira

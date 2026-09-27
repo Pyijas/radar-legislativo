@@ -79,6 +79,14 @@ const RadarModal = (function () {
       node.classList.toggle('ativo', ativo);
       node.title = ativo ? 'Remover dos salvos' : 'Salvar';
       node.setAttribute('aria-label', node.title);
+      if (ativo) {
+        // reinicia a animação mesmo se a classe já estiver lá
+        node.classList.remove('acabou-de-salvar');
+        void node.offsetWidth;
+        node.classList.add('acabou-de-salvar');
+      } else {
+        node.classList.remove('acabou-de-salvar');
+      }
     });
   }
 
