@@ -132,6 +132,8 @@ _ENTIDADES_FARMA = (
     r"takeda|amgen|biogen|\blilly\b|boehringer|servier|\bteva\b|dr\.? ?reddy|"
     r"zydus|viatris|organon|moderna|biontech|astellas|daiichi|\bucb\b|alexion|"
     r"cellera|\bcsl\b|behring|fresenius|bionovis|\bbiomm\b|orygen|"
+    r"wockhardt|bahiafarma|samsung bioepis|biocon|\bibmp\b|aspen|"
+    r"abifina|febrafar|anvisa.?dinavisa|"
     r"hemobr[áa]s|butantan|bio-?manguinhos|farmanguinhos|fiocruz|"
     r"interfarma|sindusfarma|alanac|pr[óo] ?gen[ée]ricos|abrafarma|abiquifi|"
     r"abimip|grupo farmabrasil|farmabrasil|abradimex|abcfarma"
